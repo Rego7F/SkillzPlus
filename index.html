@@ -1570,6 +1570,13 @@
                     gameState = data.state;
                     startRematch();
                     break;
+                    
+                case 'gameover':
+                    gameState.you.hp = data.yourHp;
+                    gameState.opponent.hp = data.oppHp;
+                    updateUI();
+                    setTimeout(() => endGame(), 500);
+                    break;
             }
         }
 
@@ -1752,31 +1759,41 @@
             
             updateUI();
             
-            // Check game over
+            // Check game over - only host decides, then broadcasts
             setTimeout(() => {
-                if (gameState.you.hp <= 0 || gameState.opponent.hp <= 0) {
-                    endGame();
-                } else {
-                    // Check resource exhaustion
-                    const yourTotal = Object.values(gameState.you.resources).reduce((a,b) => a+b, 0);
-                    const oppTotal = Object.values(gameState.opponent.resources).reduce((a,b) => a+b, 0);
-                    
-                    if (yourTotal === 0 || oppTotal === 0) {
-                        endGame();
+                const yourTotal = Object.values(gameState.you.resources).reduce((a,b) => a+b, 0);
+                const oppTotal = Object.values(gameState.opponent.resources).reduce((a,b) => a+b, 0);
+                
+                const gameOver = gameState.you.hp <= 0 || gameState.opponent.hp <= 0 || 
+                                 yourTotal === 0 || oppTotal === 0;
+                
+                if (isHost) {
+                    if (gameOver) {
+                        // Host tells client game is over
+                        conn.send({ 
+                            type: 'gameover',
+                            yourHp: gameState.opponent.hp,
+                            oppHp: gameState.you.hp
+                        });
+                        setTimeout(() => endGame(), 500);
                     } else {
                         // Next round
-                        if (isHost) {
-                            gameState.round++;
-                            conn.send({ 
-                                type: 'newround', 
-                                state: {
-                                    round: gameState.round,
-                                    you: gameState.opponent,
-                                    opponent: gameState.you
-                                }
-                            });
-                        }
+                        gameState.round++;
+                        conn.send({ 
+                            type: 'newround', 
+                            state: {
+                                round: gameState.round,
+                                you: gameState.opponent,
+                                opponent: gameState.you
+                            }
+                        });
                         setTimeout(() => nextRound(), 2000);
+                    }
+                } else {
+                    // Client waits for host's decision
+                    if (!gameOver) {
+                        // Only proceed to next round if not game over
+                        // Host will send newround or gameover message
                     }
                 }
             }, 2000);
