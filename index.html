@@ -5,25 +5,27 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tactical RPS</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Archivo+Black&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Zen+Dots&family=M+PLUS+1p:wght@400;700;900&family=Noto+Sans+JP:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-dark: #0c0c0c;
-            --bg-card: rgba(20, 20, 20, 0.9);
-            --bg-hover: #1f1f1f;
-            --border: #333;
+            --bg-dark: #1a0a14;
+            --bg-card: rgba(30, 15, 25, 0.95);
+            --bg-hover: #2a1520;
+            --border: #4a2535;
             --text: #fff;
-            --text-dim: #888;
-            --rock: #ff3d3d;
-            --paper: #4da6ff;
-            --scissors: #ffc93d;
-            --hp-full: #00ff88;
-            --hp-mid: #ffcc00;
-            --hp-low: #ff2222;
-            --gold: #ffc800;
-            --crimson: #dc143c;
-            --p1-accent: #00ffcc;
-            --p2-accent: #ff0066;
+            --text-dim: #a88;
+            --rock: #ff6b6b;
+            --paper: #74c0fc;
+            --scissors: #ffd43b;
+            --hp-full: #51cf66;
+            --hp-mid: #fcc419;
+            --hp-low: #ff6b6b;
+            --gold: #ffd700;
+            --sakura: #ffb7c5;
+            --sakura-dark: #d4849a;
+            --crimson: #c41e3a;
+            --p1-accent: #74c0fc;
+            --p2-accent: #ff6b9d;
         }
 
         * {
@@ -33,11 +35,29 @@
         }
 
         body {
-            font-family: 'Space Grotesk', sans-serif;
+            font-family: 'M PLUS 1p', sans-serif;
             background: var(--bg-dark);
             color: var(--text);
             min-height: 100vh;
             overflow-x: hidden;
+        }
+
+        /* Sakura petals animation */
+        @keyframes fall {
+            0% { transform: translateY(-10vh) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(110vh) rotate(720deg); opacity: 0.3; }
+        }
+
+        .sakura-petal {
+            position: fixed;
+            width: 10px;
+            height: 10px;
+            background: var(--sakura);
+            border-radius: 150% 0 150% 0;
+            opacity: 0.6;
+            pointer-events: none;
+            z-index: 0;
+            animation: fall linear infinite;
         }
 
         .bg-pattern {
@@ -47,24 +67,26 @@
             width: 100%;
             height: 100%;
             background: 
-                repeating-linear-gradient(
-                    0deg,
-                    transparent,
-                    transparent 50px,
-                    rgba(255, 200, 0, 0.01) 50px,
-                    rgba(255, 200, 0, 0.01) 51px
-                ),
-                repeating-linear-gradient(
-                    90deg,
-                    transparent,
-                    transparent 50px,
-                    rgba(255, 200, 0, 0.01) 50px,
-                    rgba(255, 200, 0, 0.01) 51px
-                ),
-                radial-gradient(ellipse at 0% 0%, rgba(220, 20, 60, 0.15) 0%, transparent 50%),
-                radial-gradient(ellipse at 100% 100%, rgba(255, 200, 0, 0.1) 0%, transparent 50%),
-                linear-gradient(180deg, #0c0c0c 0%, #151515 100%);
+                radial-gradient(ellipse at 20% 0%, rgba(255, 183, 197, 0.08) 0%, transparent 40%),
+                radial-gradient(ellipse at 80% 100%, rgba(255, 107, 107, 0.05) 0%, transparent 40%),
+                radial-gradient(ellipse at 50% 50%, rgba(100, 50, 70, 0.3) 0%, transparent 70%),
+                url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 5 L35 25 L55 30 L35 35 L30 55 L25 35 L5 30 L25 25 Z' fill='none' stroke='%23ffffff' stroke-width='0.3' opacity='0.03'/%3E%3C/svg%3E"),
+                linear-gradient(180deg, #1a0a14 0%, #0d0509 100%);
             z-index: -1;
+        }
+
+        .bg-pattern::before {
+            content: '勝負';
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-family: 'Noto Sans JP', sans-serif;
+            font-size: 25vw;
+            font-weight: 900;
+            color: rgba(255, 183, 197, 0.02);
+            pointer-events: none;
+            white-space: nowrap;
         }
 
         .container {
@@ -78,48 +100,65 @@
 
         .header {
             text-align: center;
-            padding: 20px 0 15px;
+            padding: 25px 0 20px;
             position: relative;
         }
 
-        .header::after {
-            content: '';
+        .header::before {
+            content: '🌸';
             position: absolute;
-            bottom: 0;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 200px;
-            height: 2px;
-            background: linear-gradient(90deg, transparent, var(--crimson), var(--gold), var(--crimson), transparent);
+            top: 20px;
+            left: 30px;
+            font-size: 1.5rem;
+            opacity: 0.5;
+        }
+
+        .header::after {
+            content: '🌸';
+            position: absolute;
+            top: 20px;
+            right: 30px;
+            font-size: 1.5rem;
+            opacity: 0.5;
+            transform: scaleX(-1);
         }
 
         .title {
-            font-family: 'Bebas Neue', sans-serif;
-            font-size: 3.5rem;
-            font-weight: 400;
+            font-family: 'Noto Sans JP', sans-serif;
+            font-size: 2rem;
+            font-weight: 900;
             color: var(--text);
-            text-transform: uppercase;
-            letter-spacing: 12px;
             position: relative;
             display: inline-block;
         }
 
         .title span {
-            background: linear-gradient(180deg, #fff 0%, #ccc 50%, #888 100%);
+            background: linear-gradient(180deg, #fff 0%, var(--sakura) 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
 
         .title::before {
-            content: '対戦';
+            content: '石紙鋏';
             position: absolute;
-            top: -10px;
-            right: -50px;
-            font-family: 'Space Grotesk', sans-serif;
-            font-size: 0.8rem;
-            color: var(--crimson);
-            letter-spacing: 2px;
-            writing-mode: vertical-rl;
+            top: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.9rem;
+            color: var(--sakura);
+            letter-spacing: 8px;
+            opacity: 0.8;
+        }
+
+        .title::after {
+            content: '戦術';
+            position: absolute;
+            bottom: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.7rem;
+            color: var(--sakura-dark);
+            letter-spacing: 12px;
         }
 
         /* Lobby Screen */
@@ -134,117 +173,123 @@
 
         .lobby-card {
             background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 4px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
             padding: 40px;
             text-align: center;
             max-width: 400px;
             width: 100%;
             position: relative;
             backdrop-filter: blur(10px);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
         }
 
         .lobby-card::before {
             content: '';
             position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 3px;
-            background: linear-gradient(90deg, var(--crimson), var(--gold));
+            top: -2px;
+            left: 30px;
+            right: 30px;
+            height: 4px;
+            background: linear-gradient(90deg, transparent, var(--sakura), transparent);
+            border-radius: 0 0 4px 4px;
         }
 
         .lobby-card::after {
-            content: '';
+            content: '◆';
             position: absolute;
-            top: 10px;
-            right: 10px;
-            width: 8px;
-            height: 8px;
-            background: var(--crimson);
-            border-radius: 50%;
-            box-shadow: 0 0 10px var(--crimson);
-            animation: blink 2s ease-in-out infinite;
-        }
-
-        @keyframes blink {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.3; }
+            top: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.8rem;
+            color: var(--sakura);
+            background: var(--bg-dark);
+            padding: 0 10px;
         }
 
         .lobby-title {
-            font-family: 'Bebas Neue', sans-serif;
-            font-size: 1.8rem;
+            font-family: 'Noto Sans JP', sans-serif;
+            font-size: 1.4rem;
             margin-bottom: 25px;
-            color: var(--text);
+            color: var(--sakura);
             letter-spacing: 6px;
-            text-transform: uppercase;
+        }
+
+        .lobby-title::after {
+            content: '';
+            display: block;
+            width: 60px;
+            height: 1px;
+            background: var(--sakura-dark);
+            margin: 12px auto 0;
         }
 
         .room-code {
-            font-family: 'Archivo Black', sans-serif;
-            font-size: 2.8rem;
-            font-weight: 400;
-            letter-spacing: 12px;
+            font-family: 'Zen Dots', cursive;
+            font-size: 2.5rem;
+            letter-spacing: 10px;
             color: var(--gold);
-            background: linear-gradient(180deg, #1a1a1a 0%, #0a0a0a 100%);
+            background: linear-gradient(180deg, rgba(255,183,197,0.1) 0%, rgba(0,0,0,0.3) 100%);
             padding: 25px 35px;
             margin: 25px 0;
             user-select: all;
-            border: 1px solid #333;
+            border: 2px solid var(--sakura-dark);
+            border-radius: 8px;
             position: relative;
         }
 
         .room-code::before {
-            content: 'ROOM CODE';
+            content: '部屋番号';
             position: absolute;
-            top: -10px;
-            left: 20px;
-            font-family: 'Space Grotesk', sans-serif;
-            font-size: 0.65rem;
-            color: var(--crimson);
-            letter-spacing: 3px;
-            background: var(--bg-dark);
-            padding: 0 10px;
+            top: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-family: 'Noto Sans JP', sans-serif;
+            font-size: 0.7rem;
+            color: var(--sakura);
+            letter-spacing: 4px;
+            background: var(--bg-card);
+            padding: 0 15px;
         }
 
         .lobby-input {
             width: 100%;
             padding: 18px 20px;
-            font-family: 'Archivo Black', sans-serif;
-            font-size: 1.4rem;
+            font-family: 'Zen Dots', cursive;
+            font-size: 1.3rem;
             text-align: center;
             letter-spacing: 8px;
             text-transform: uppercase;
-            background: #0a0a0a;
+            background: rgba(0, 0, 0, 0.3);
             border: 2px solid var(--border);
+            border-radius: 8px;
             color: var(--text);
             margin-bottom: 15px;
         }
 
         .lobby-input:focus {
             outline: none;
-            border-color: var(--gold);
-            box-shadow: 0 0 20px rgba(255, 200, 0, 0.2);
+            border-color: var(--sakura);
+            box-shadow: 0 0 25px rgba(255, 183, 197, 0.3);
         }
 
         .lobby-input::placeholder {
-            color: #444;
+            color: var(--sakura-dark);
             letter-spacing: 4px;
-            font-family: 'Space Grotesk', sans-serif;
+            font-family: 'M PLUS 1p', sans-serif;
             font-size: 1rem;
         }
 
         .btn {
-            font-family: 'Bebas Neue', sans-serif;
-            font-size: 1.3rem;
-            font-weight: 400;
-            text-transform: uppercase;
+            font-family: 'Noto Sans JP', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 700;
             letter-spacing: 4px;
             padding: 18px 40px;
             border: none;
+            border-radius: 8px;
             cursor: pointer;
-            transition: all 0.15s;
+            transition: all 0.2s;
             width: 100%;
             margin-top: 10px;
             position: relative;
@@ -252,9 +297,9 @@
         }
 
         .btn-primary {
-            background: var(--crimson);
+            background: linear-gradient(135deg, var(--sakura-dark) 0%, var(--crimson) 100%);
             color: #fff;
-            box-shadow: 0 4px 20px rgba(220, 20, 60, 0.4);
+            box-shadow: 0 4px 20px rgba(255, 183, 197, 0.3);
         }
 
         .btn-primary::before {
@@ -264,8 +309,8 @@
             left: -100%;
             width: 100%;
             height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-            transition: left 0.4s;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            transition: left 0.5s;
         }
 
         .btn-primary:hover:not(:disabled)::before {
@@ -273,8 +318,8 @@
         }
 
         .btn-primary:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 30px rgba(220, 20, 60, 0.5);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 30px rgba(255, 183, 197, 0.4);
         }
 
         .btn-primary:disabled {
@@ -284,21 +329,28 @@
 
         .btn-secondary {
             background: transparent;
-            color: var(--text);
+            color: var(--sakura);
             border: 2px solid var(--border);
         }
 
         .btn-secondary:hover {
-            border-color: var(--gold);
-            color: var(--gold);
+            border-color: var(--sakura);
+            background: rgba(255, 183, 197, 0.1);
         }
 
         .lobby-or {
-            color: #444;
+            color: var(--sakura-dark);
             margin: 25px 0;
             font-size: 0.8rem;
             letter-spacing: 4px;
-            text-transform: uppercase;
+        }
+
+        .lobby-or::before {
+            content: '✿ ';
+        }
+
+        .lobby-or::after {
+            content: ' ✿';
         }
 
         .status-text {
@@ -325,52 +377,43 @@
         .mode-option {
             flex: 1;
             padding: 18px 15px;
-            background: #0a0a0a;
+            background: rgba(0, 0, 0, 0.3);
             border: 2px solid var(--border);
+            border-radius: 8px;
             cursor: pointer;
             text-align: center;
-            transition: all 0.15s;
+            transition: all 0.2s;
             position: relative;
         }
 
-        .mode-option::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 0;
-            height: 2px;
-            background: var(--gold);
-            transition: width 0.3s;
-        }
-
-        .mode-option:hover::before,
-        .mode-option.selected::before {
-            width: 100%;
+        .mode-option:hover {
+            border-color: var(--sakura-dark);
         }
 
         .mode-option.selected {
-            border-color: var(--gold);
-            background: rgba(255, 200, 0, 0.05);
+            border-color: var(--sakura);
+            background: rgba(255, 183, 197, 0.1);
+            box-shadow: 0 0 20px rgba(255, 183, 197, 0.2);
         }
 
         .mode-icon {
             display: block;
-            font-size: 1.8rem;
+            font-size: 2rem;
             margin-bottom: 8px;
         }
 
         .mode-name {
             display: block;
-            font-family: 'Bebas Neue', sans-serif;
-            font-size: 1.2rem;
-            letter-spacing: 3px;
+            font-family: 'Noto Sans JP', sans-serif;
+            font-size: 1rem;
+            font-weight: 700;
+            letter-spacing: 2px;
         }
 
         .mode-desc {
             display: block;
             font-size: 0.7rem;
-            color: var(--text-dim);
+            color: var(--sakura-dark);
             margin-top: 5px;
             letter-spacing: 1px;
         }
@@ -380,11 +423,13 @@
             top: 20px;
             left: 50%;
             transform: translateX(-50%);
-            background: #000;
-            border: 2px solid var(--crimson);
+            background: var(--bg-card);
+            border: 2px solid var(--sakura);
+            border-radius: 30px;
             padding: 12px 35px;
             z-index: 50;
             display: none;
+            box-shadow: 0 5px 30px rgba(255, 183, 197, 0.2);
         }
 
         .timer-display.active {
@@ -396,12 +441,12 @@
         .timer-display.urgent {
             border-color: var(--hp-low);
             animation: timerPulse 0.3s ease-in-out infinite;
-            background: rgba(255, 0, 0, 0.1);
+            background: rgba(255, 107, 107, 0.1);
         }
 
         @keyframes timerPulse {
-            0%, 100% { box-shadow: 0 0 30px rgba(255, 0, 0, 0.4); }
-            50% { box-shadow: 0 0 50px rgba(255, 0, 0, 0.7); }
+            0%, 100% { box-shadow: 0 0 30px rgba(255, 107, 107, 0.4); }
+            50% { box-shadow: 0 0 50px rgba(255, 107, 107, 0.7); }
         }
 
         .timer-icon {
@@ -409,11 +454,11 @@
         }
 
         .timer-value {
-            font-family: 'Archivo Black', sans-serif;
-            font-size: 2rem;
+            font-family: 'Zen Dots', cursive;
+            font-size: 1.8rem;
             min-width: 45px;
             text-align: center;
-            color: var(--gold);
+            color: var(--sakura);
         }
 
         .timer-display.urgent .timer-value {
@@ -427,21 +472,21 @@
         }
 
         .mode-badge {
-            background: #1a1a1a;
+            background: rgba(255, 183, 197, 0.1);
             padding: 5px 12px;
-            font-family: 'Space Grotesk', sans-serif;
+            font-family: 'M PLUS 1p', sans-serif;
             font-size: 0.65rem;
-            color: var(--text-dim);
-            text-transform: uppercase;
+            color: var(--sakura);
             letter-spacing: 2px;
-            border: 1px solid var(--border);
+            border: 1px solid var(--sakura-dark);
+            border-radius: 4px;
             margin-top: 8px;
         }
 
         .mode-badge.blitz {
-            background: rgba(220, 20, 60, 0.2);
-            color: var(--crimson);
-            border-color: var(--crimson);
+            background: rgba(255, 107, 107, 0.2);
+            color: var(--hp-low);
+            border-color: var(--hp-low);
         }
 
         .rematch-section {
@@ -492,39 +537,35 @@
         .player-info {
             flex: 1;
             background: var(--bg-card);
-            border: 1px solid var(--border);
+            border: 2px solid var(--border);
+            border-radius: 8px;
             padding: 18px 22px;
             position: relative;
             backdrop-filter: blur(10px);
         }
 
-        .player-info::before {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 3px;
+        .player-info.you {
+            border-color: var(--p1-accent);
+            box-shadow: 0 0 20px rgba(116, 192, 252, 0.15);
         }
 
-        .player-info.you::before {
-            background: linear-gradient(90deg, var(--p1-accent), transparent);
-        }
-
-        .player-info.opponent::before {
-            background: linear-gradient(90deg, transparent, var(--p2-accent));
+        .player-info.opponent {
+            border-color: var(--p2-accent);
+            box-shadow: 0 0 20px rgba(255, 107, 157, 0.15);
         }
 
         .player-label {
-            font-family: 'Bebas Neue', sans-serif;
-            font-size: 1rem;
-            text-transform: uppercase;
-            letter-spacing: 4px;
+            font-family: 'Noto Sans JP', sans-serif;
+            font-size: 0.9rem;
+            font-weight: 700;
+            letter-spacing: 3px;
             margin-bottom: 10px;
         }
 
         .player-info.you .player-label { color: var(--p1-accent); }
+        .player-info.you .player-label::before { content: '自分 '; font-size: 0.7rem; opacity: 0.7; }
         .player-info.opponent .player-label { color: var(--p2-accent); }
+        .player-info.opponent .player-label::before { content: '相手 '; font-size: 0.7rem; opacity: 0.7; }
 
         .player-hp {
             display: flex;
@@ -534,62 +575,62 @@
 
         .hp-bar-mini {
             flex: 1;
-            height: 8px;
-            background: #1a1a1a;
+            height: 10px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 5px;
             overflow: hidden;
         }
 
         .hp-fill {
             height: 100%;
+            border-radius: 5px;
             transition: width 0.5s ease, background 0.3s;
         }
 
-        .hp-fill.full { background: linear-gradient(90deg, #00cc66, #00ff88); }
-        .hp-fill.mid { background: linear-gradient(90deg, #cc9900, #ffcc00); }
-        .hp-fill.low { background: linear-gradient(90deg, #cc0000, #ff2222); }
+        .hp-fill.full { background: linear-gradient(90deg, #2ecc71, #51cf66); }
+        .hp-fill.mid { background: linear-gradient(90deg, #f1c40f, #fcc419); }
+        .hp-fill.low { background: linear-gradient(90deg, #e74c3c, #ff6b6b); }
 
         .hp-text {
-            font-family: 'Archivo Black', sans-serif;
-            font-size: 1.2rem;
+            font-family: 'Zen Dots', cursive;
+            font-size: 1.1rem;
             min-width: 30px;
             text-align: right;
         }
 
         .round-badge {
             background: var(--bg-card);
-            border: 1px solid var(--border);
-            padding: 15px 30px;
+            border: 2px solid var(--sakura-dark);
+            border-radius: 50%;
+            width: 90px;
+            height: 90px;
             text-align: center;
             display: flex;
             flex-direction: column;
+            align-items: center;
             justify-content: center;
             position: relative;
+            box-shadow: 0 0 30px rgba(255, 183, 197, 0.15);
         }
-
-        .round-badge::before,
-        .round-badge::after {
-            content: '';
-            position: absolute;
-            top: 50%;
-            width: 20px;
-            height: 1px;
-            background: var(--border);
-        }
-
-        .round-badge::before { left: -20px; }
-        .round-badge::after { right: -20px; }
 
         .round-label {
+            font-family: 'Noto Sans JP', sans-serif;
+            font-size: 0.55rem;
+            letter-spacing: 2px;
+            color: var(--sakura-dark);
+        }
+
+        .round-label::after {
+            content: '回戦';
+            display: block;
             font-size: 0.6rem;
-            text-transform: uppercase;
-            letter-spacing: 3px;
-            color: var(--text-dim);
+            margin-top: 2px;
         }
 
         .round-num {
-            font-family: 'Archivo Black', sans-serif;
-            font-size: 2rem;
-            color: var(--gold);
+            font-family: 'Zen Dots', cursive;
+            font-size: 1.8rem;
+            color: var(--sakura);
             line-height: 1;
         }
 
@@ -667,31 +708,33 @@
         /* Your selection */
         .selection-panel {
             background: var(--bg-card);
-            border: 1px solid var(--p1-accent);
+            border: 2px solid var(--sakura-dark);
+            border-radius: 12px;
             padding: 30px;
             position: relative;
             backdrop-filter: blur(10px);
         }
 
         .selection-panel::before {
-            content: 'SELECT';
+            content: '手を選べ';
             position: absolute;
-            top: -10px;
-            left: 30px;
-            font-family: 'Space Grotesk', sans-serif;
-            font-size: 0.65rem;
-            color: var(--p1-accent);
-            letter-spacing: 3px;
+            top: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-family: 'Noto Sans JP', sans-serif;
+            font-size: 0.75rem;
+            color: var(--sakura);
+            letter-spacing: 4px;
             background: var(--bg-dark);
-            padding: 0 10px;
+            padding: 0 15px;
         }
 
         .selection-title {
             text-align: center;
-            font-family: 'Bebas Neue', sans-serif;
-            font-size: 1.3rem;
-            text-transform: uppercase;
-            letter-spacing: 6px;
+            font-family: 'Noto Sans JP', sans-serif;
+            font-size: 1.2rem;
+            font-weight: 700;
+            letter-spacing: 4px;
             color: var(--text);
             margin-bottom: 25px;
         }
@@ -704,11 +747,12 @@
 
         .selection-btn {
             width: 110px;
-            height: 130px;
+            height: 140px;
             border: 2px solid var(--border);
-            background: #0a0a0a;
+            border-radius: 12px;
+            background: rgba(0, 0, 0, 0.4);
             cursor: pointer;
-            transition: all 0.15s;
+            transition: all 0.2s;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -725,7 +769,7 @@
             left: 0;
             right: 0;
             height: 0;
-            background: linear-gradient(180deg, rgba(255,200,0,0.2) 0%, transparent 100%);
+            background: linear-gradient(180deg, rgba(255, 183, 197, 0.3) 0%, transparent 100%);
             transition: height 0.3s;
         }
 
@@ -734,15 +778,15 @@
         }
 
         .selection-btn:hover:not(.depleted):not(.locked) {
-            transform: translateY(-8px);
-            border-color: var(--gold);
-            box-shadow: 0 15px 40px rgba(255, 200, 0, 0.2);
+            transform: translateY(-10px) scale(1.02);
+            border-color: var(--sakura);
+            box-shadow: 0 20px 40px rgba(255, 183, 197, 0.3);
         }
 
         .selection-btn.selected {
-            border-color: var(--gold);
-            transform: translateY(-8px);
-            box-shadow: 0 0 30px rgba(255, 200, 0, 0.3);
+            border-color: var(--sakura);
+            transform: translateY(-10px) scale(1.02);
+            box-shadow: 0 0 40px rgba(255, 183, 197, 0.4);
         }
 
         .selection-btn.selected::before {
@@ -760,23 +804,27 @@
         }
 
         .selection-btn .icon {
-            font-size: 3rem;
+            font-size: 3.2rem;
             position: relative;
             z-index: 1;
         }
 
         .selection-btn .label {
-            font-family: 'Bebas Neue', sans-serif;
-            font-size: 0.9rem;
-            text-transform: uppercase;
-            letter-spacing: 3px;
-            color: var(--text-dim);
+            font-family: 'Noto Sans JP', sans-serif;
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            color: var(--sakura-dark);
             position: relative;
             z-index: 1;
         }
 
+        .selection-btn.rock .label::after { content: ' グー'; }
+        .selection-btn.paper .label::after { content: ' パー'; }
+        .selection-btn.scissors .label::after { content: ' チョキ'; }
+
         .selection-btn .remaining {
-            font-family: 'Archivo Black', sans-serif;
+            font-family: 'Zen Dots', cursive;
             font-size: 1rem;
             position: relative;
             z-index: 1;
@@ -816,7 +864,8 @@
         /* Battle result */
         .battle-result {
             background: var(--bg-card);
-            border: 1px solid var(--border);
+            border: 2px solid var(--sakura-dark);
+            border-radius: 12px;
             padding: 35px;
             text-align: center;
             display: none;
@@ -826,12 +875,12 @@
 
         .battle-result.show {
             display: block;
-            animation: resultSlide 0.3s ease-out;
+            animation: resultSlide 0.4s ease-out;
         }
 
         @keyframes resultSlide {
-            from { opacity: 0; transform: translateY(-20px); }
-            to { opacity: 1; transform: translateY(0); }
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
         }
 
         .battle-display {
@@ -843,54 +892,59 @@
         }
 
         .battle-choice {
-            width: 90px;
-            height: 90px;
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 3rem;
-            background: #0a0a0a;
-            border: 2px solid var(--border);
+            background: rgba(0, 0, 0, 0.5);
+            border: 3px solid var(--border);
             position: relative;
         }
 
-        .battle-choice::after {
-            content: '';
-            position: absolute;
-            bottom: -8px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 40px;
-            height: 3px;
-        }
-
-        .battle-choice.you::after { background: var(--p1-accent); }
-        .battle-choice.opponent::after { background: var(--p2-accent); }
+        .battle-choice.you { border-color: var(--p1-accent); }
+        .battle-choice.opponent { border-color: var(--p2-accent); }
         
         .battle-choice.winner { 
             border-color: var(--hp-full); 
-            box-shadow: 0 0 30px rgba(0, 255, 136, 0.3);
+            box-shadow: 0 0 40px rgba(81, 207, 102, 0.5);
+            animation: winGlow 0.5s ease-out;
         }
+
+        @keyframes winGlow {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
         .battle-choice.loser { 
-            opacity: 0.4;
-            filter: grayscale(50%);
+            opacity: 0.3;
+            filter: grayscale(70%);
         }
 
         .battle-vs {
-            font-family: 'Archivo Black', sans-serif;
-            font-size: 1.5rem;
-            color: var(--crimson);
+            font-family: 'Noto Sans JP', sans-serif;
+            font-size: 1.2rem;
+            font-weight: 900;
+            color: var(--sakura);
         }
 
+        .battle-vs::before { content: '⚔️'; display: block; font-size: 1.5rem; margin-bottom: 5px; }
+
         .battle-message {
-            font-family: 'Bebas Neue', sans-serif;
-            font-size: 1.5rem;
-            letter-spacing: 4px;
+            font-family: 'Noto Sans JP', sans-serif;
+            font-size: 1.3rem;
+            font-weight: 700;
+            letter-spacing: 3px;
         }
 
         .battle-message.win { color: var(--hp-full); }
+        .battle-message.win::before { content: '🎉 '; }
         .battle-message.lose { color: var(--hp-low); }
         .battle-message.tie { color: var(--gold); }
+        .battle-message.tie::before { content: '🤝 '; }
 
         /* History */
         .history-panel {
@@ -953,7 +1007,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.95);
+            background: rgba(26, 10, 20, 0.98);
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -972,8 +1026,9 @@
             right: 0;
             bottom: 0;
             background: 
-                radial-gradient(circle at 50% 30%, rgba(220, 20, 60, 0.1) 0%, transparent 50%),
-                radial-gradient(circle at 50% 70%, rgba(255, 200, 0, 0.1) 0%, transparent 50%);
+                radial-gradient(circle at 50% 30%, rgba(255, 183, 197, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 30% 70%, rgba(255, 107, 107, 0.08) 0%, transparent 40%),
+                radial-gradient(circle at 70% 70%, rgba(255, 215, 0, 0.05) 0%, transparent 40%);
         }
 
         .game-over-overlay.show {
@@ -982,11 +1037,11 @@
         }
 
         .game-over-title {
-            font-family: 'Bebas Neue', sans-serif;
-            font-size: 5rem;
-            margin-bottom: 20px;
-            text-transform: uppercase;
-            letter-spacing: 15px;
+            font-family: 'Noto Sans JP', sans-serif;
+            font-size: 4rem;
+            font-weight: 900;
+            margin-bottom: 15px;
+            letter-spacing: 10px;
             position: relative;
             z-index: 1;
         }
@@ -996,15 +1051,33 @@
             text-shadow: 0 0 60px var(--hp-full), 0 0 100px var(--hp-full);
         }
 
+        .game-over-title.victory::before {
+            content: '勝利 🌸';
+            display: block;
+            font-size: 1.5rem;
+            letter-spacing: 15px;
+            margin-bottom: 10px;
+            opacity: 0.8;
+        }
+
         .game-over-title.defeat {
             color: var(--hp-low);
             text-shadow: 0 0 60px var(--hp-low), 0 0 100px var(--hp-low);
         }
 
+        .game-over-title.defeat::before {
+            content: '敗北';
+            display: block;
+            font-size: 1.5rem;
+            letter-spacing: 15px;
+            margin-bottom: 10px;
+            opacity: 0.8;
+        }
+
         .game-over-subtitle {
-            font-family: 'Space Grotesk', sans-serif;
+            font-family: 'M PLUS 1p', sans-serif;
             font-size: 1rem;
-            color: var(--text-dim);
+            color: var(--sakura-dark);
             margin-bottom: 40px;
             letter-spacing: 2px;
             position: relative;
@@ -1808,6 +1881,34 @@
                 }
             }
         }
+
+        // Sakura petals animation
+        function createSakuraPetals() {
+            const petalCount = 12;
+            for (let i = 0; i < petalCount; i++) {
+                setTimeout(() => createSinglePetal(), i * 400);
+            }
+        }
+
+        function createSinglePetal() {
+            const petal = document.createElement('div');
+            petal.className = 'sakura-petal';
+            petal.style.left = Math.random() * 100 + 'vw';
+            petal.style.animationDuration = (Math.random() * 8 + 12) + 's';
+            petal.style.opacity = Math.random() * 0.3 + 0.2;
+            const size = Math.random() * 8 + 6;
+            petal.style.width = size + 'px';
+            petal.style.height = size + 'px';
+            document.body.appendChild(petal);
+            
+            setTimeout(() => {
+                petal.remove();
+                createSinglePetal();
+            }, parseFloat(petal.style.animationDuration) * 1000);
+        }
+
+        // Start petals
+        createSakuraPetals();
     </script>
 </body>
 </html>
