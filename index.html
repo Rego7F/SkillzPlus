@@ -1,0 +1,1475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tactical RPS</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0a0a0f;
+            --bg-card: #12121a;
+            --bg-hover: #1a1a25;
+            --border: #2a2a3a;
+            --text: #e0e0e0;
+            --text-dim: #666680;
+            --rock: #e74c3c;
+            --paper: #3498db;
+            --scissors: #f39c12;
+            --hp-full: #2ecc71;
+            --hp-mid: #f1c40f;
+            --hp-low: #e74c3c;
+            --gold: #ffd700;
+            --p1-accent: #00d4ff;
+            --p2-accent: #ff006e;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background: var(--bg-dark);
+            color: var(--text);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .bg-pattern {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 20% 80%, rgba(0, 212, 255, 0.05) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(255, 0, 110, 0.05) 0%, transparent 50%),
+                linear-gradient(135deg, #0a0a0f 0%, #0f0f18 100%);
+            z-index: -1;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            text-align: center;
+            padding: 15px 0;
+        }
+
+        .title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, var(--p1-accent), var(--gold), var(--p2-accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+        }
+
+        /* Lobby Screen */
+        .lobby {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 30px;
+        }
+
+        .lobby-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            max-width: 400px;
+            width: 100%;
+        }
+
+        .lobby-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.3rem;
+            margin-bottom: 20px;
+            color: var(--gold);
+        }
+
+        .room-code {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2.5rem;
+            font-weight: 900;
+            letter-spacing: 8px;
+            color: var(--p1-accent);
+            background: var(--bg-hover);
+            padding: 20px 30px;
+            border-radius: 12px;
+            margin: 20px 0;
+            user-select: all;
+        }
+
+        .lobby-input {
+            width: 100%;
+            padding: 15px 20px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.2rem;
+            text-align: center;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            background: var(--bg-hover);
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            color: var(--text);
+            margin-bottom: 15px;
+        }
+
+        .lobby-input:focus {
+            outline: none;
+            border-color: var(--gold);
+        }
+
+        .lobby-input::placeholder {
+            color: var(--text-dim);
+            letter-spacing: 2px;
+        }
+
+        .btn {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            padding: 15px 40px;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: all 0.2s;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--gold), #ffaa00);
+            color: #000;
+            box-shadow: 0 5px 30px rgba(255, 215, 0, 0.3);
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 40px rgba(255, 215, 0, 0.4);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: var(--bg-hover);
+            color: var(--text);
+            border: 2px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--gold);
+        }
+
+        .lobby-or {
+            color: var(--text-dim);
+            margin: 20px 0;
+            font-size: 0.9rem;
+        }
+
+        .status-text {
+            color: var(--text-dim);
+            font-size: 0.9rem;
+            margin-top: 15px;
+        }
+
+        .status-text.connected {
+            color: var(--hp-full);
+        }
+
+        .status-text.error {
+            color: var(--hp-low);
+        }
+
+        .mode-select {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .mode-option {
+            flex: 1;
+            padding: 15px;
+            background: var(--bg-hover);
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+        }
+
+        .mode-option:hover {
+            border-color: var(--gold);
+        }
+
+        .mode-option.selected {
+            border-color: var(--gold);
+            background: rgba(255, 215, 0, 0.1);
+        }
+
+        .mode-icon {
+            display: block;
+            font-size: 1.5rem;
+            margin-bottom: 5px;
+        }
+
+        .mode-name {
+            display: block;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+
+        .mode-desc {
+            display: block;
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            margin-top: 3px;
+        }
+
+        .timer-display {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--bg-card);
+            border: 2px solid var(--border);
+            border-radius: 50px;
+            padding: 10px 30px;
+            z-index: 50;
+            display: none;
+        }
+
+        .timer-display.active {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .timer-display.urgent {
+            border-color: var(--hp-low);
+            animation: timerPulse 0.5s ease-in-out infinite;
+        }
+
+        @keyframes timerPulse {
+            0%, 100% { box-shadow: 0 0 20px rgba(231, 76, 60, 0.3); }
+            50% { box-shadow: 0 0 30px rgba(231, 76, 60, 0.6); }
+        }
+
+        .timer-icon {
+            font-size: 1.2rem;
+        }
+
+        .timer-value {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 900;
+            min-width: 40px;
+            text-align: center;
+        }
+
+        .timer-display.urgent .timer-value {
+            color: var(--hp-low);
+        }
+
+        .mode-badge {
+            background: var(--bg-hover);
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .mode-badge.blitz {
+            background: rgba(231, 76, 60, 0.2);
+            color: var(--hp-low);
+        }
+
+        /* Game Screen */
+        .game-screen {
+            display: none;
+            flex: 1;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .game-screen.active {
+            display: flex;
+        }
+
+        .lobby.hidden {
+            display: none;
+        }
+
+        /* Player info bar */
+        .player-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .player-info {
+            flex: 1;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 15px 20px;
+        }
+
+        .player-info.you {
+            border-color: var(--p1-accent);
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.1);
+        }
+
+        .player-info.opponent {
+            border-color: var(--p2-accent);
+        }
+
+        .player-label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--text-dim);
+            margin-bottom: 5px;
+        }
+
+        .player-info.you .player-label { color: var(--p1-accent); }
+        .player-info.opponent .player-label { color: var(--p2-accent); }
+
+        .player-hp {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .hp-bar-mini {
+            flex: 1;
+            height: 20px;
+            background: var(--bg-hover);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .hp-fill {
+            height: 100%;
+            border-radius: 10px;
+            transition: width 0.5s ease, background 0.3s;
+        }
+
+        .hp-fill.full { background: linear-gradient(90deg, #27ae60, #2ecc71); }
+        .hp-fill.mid { background: linear-gradient(90deg, #f39c12, #f1c40f); }
+        .hp-fill.low { background: linear-gradient(90deg, #c0392b, #e74c3c); }
+
+        .hp-text {
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
+            min-width: 50px;
+            text-align: right;
+        }
+
+        .round-badge {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 15px 25px;
+            text-align: center;
+        }
+
+        .round-label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--text-dim);
+        }
+
+        .round-num {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--gold);
+        }
+
+        /* Resources */
+        .resources-panel {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 20px;
+        }
+
+        .resources-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+        }
+
+        .resources-title {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--text-dim);
+        }
+
+        .resources-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+
+        .resource-section {
+            padding: 10px;
+            background: var(--bg-hover);
+            border-radius: 10px;
+        }
+
+        .resource-section-label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-dim);
+            margin-bottom: 8px;
+        }
+
+        .resource-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        .resource-badge {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            padding: 8px;
+            background: var(--bg-dark);
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+
+        .resource-badge .count {
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
+        }
+
+        .resource-badge.rock .count { color: var(--rock); }
+        .resource-badge.paper .count { color: var(--paper); }
+        .resource-badge.scissors .count { color: var(--scissors); }
+        
+        .resource-badge.depleted {
+            opacity: 0.3;
+        }
+
+        /* Your selection */
+        .selection-panel {
+            background: var(--bg-card);
+            border: 2px solid var(--p1-accent);
+            border-radius: 16px;
+            padding: 25px;
+            box-shadow: 0 0 30px rgba(0, 212, 255, 0.1);
+        }
+
+        .selection-title {
+            text-align: center;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--p1-accent);
+            margin-bottom: 20px;
+        }
+
+        .selection-options {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+
+        .selection-btn {
+            width: 100px;
+            height: 100px;
+            border: 3px solid var(--border);
+            border-radius: 20px;
+            background: var(--bg-hover);
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+        }
+
+        .selection-btn:hover:not(.depleted):not(.locked) {
+            transform: translateY(-5px);
+            border-color: var(--gold);
+            box-shadow: 0 10px 30px rgba(255, 215, 0, 0.2);
+        }
+
+        .selection-btn.selected {
+            border-color: var(--gold);
+            background: rgba(255, 215, 0, 0.1);
+            transform: translateY(-5px);
+        }
+
+        .selection-btn.depleted {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .selection-btn.locked {
+            cursor: not-allowed;
+        }
+
+        .selection-btn .icon {
+            font-size: 2.5rem;
+        }
+
+        .selection-btn .label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-dim);
+        }
+
+        .selection-btn .remaining {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.8rem;
+            font-weight: 700;
+        }
+
+        .selection-btn.rock .remaining { color: var(--rock); }
+        .selection-btn.paper .remaining { color: var(--paper); }
+        .selection-btn.scissors .remaining { color: var(--scissors); }
+
+        /* Action area */
+        .action-area {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .action-btn {
+            padding: 15px 50px;
+        }
+
+        .action-status {
+            font-size: 0.9rem;
+            color: var(--text-dim);
+        }
+
+        .action-status.waiting {
+            color: var(--gold);
+            animation: pulse 1s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Battle result */
+        .battle-result {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 30px;
+            text-align: center;
+            display: none;
+        }
+
+        .battle-result.show {
+            display: block;
+        }
+
+        .battle-display {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 30px;
+            margin-bottom: 20px;
+        }
+
+        .battle-choice {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            background: var(--bg-hover);
+            border: 3px solid var(--border);
+        }
+
+        .battle-choice.you { border-color: var(--p1-accent); }
+        .battle-choice.opponent { border-color: var(--p2-accent); }
+        .battle-choice.winner { 
+            border-color: var(--hp-full); 
+            box-shadow: 0 0 20px rgba(46, 204, 113, 0.4);
+        }
+        .battle-choice.loser { opacity: 0.5; }
+
+        .battle-vs {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.2rem;
+            color: var(--gold);
+        }
+
+        .battle-message {
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .battle-message.win { color: var(--hp-full); }
+        .battle-message.lose { color: var(--hp-low); }
+        .battle-message.tie { color: var(--gold); }
+
+        /* History */
+        .history-panel {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 15px;
+        }
+
+        .history-title {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--text-dim);
+            margin-bottom: 10px;
+        }
+
+        .history-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .history-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .history-label {
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            min-width: 30px;
+        }
+
+        .history-moves {
+            display: flex;
+            gap: 4px;
+        }
+
+        .history-move {
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            background: var(--bg-hover);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+        }
+
+        .history-move.empty {
+            opacity: 0.3;
+        }
+
+        /* Game Over */
+        .game-over-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(10, 10, 15, 0.95);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s;
+        }
+
+        .game-over-overlay.show {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .game-over-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 3rem;
+            font-weight: 900;
+            margin-bottom: 30px;
+            text-transform: uppercase;
+        }
+
+        .game-over-title.victory {
+            color: var(--hp-full);
+            text-shadow: 0 0 40px var(--hp-full);
+        }
+
+        .game-over-title.defeat {
+            color: var(--hp-low);
+            text-shadow: 0 0 40px var(--hp-low);
+        }
+
+        .game-over-subtitle {
+            font-size: 1.2rem;
+            color: var(--text-dim);
+            margin-bottom: 30px;
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-pattern"></div>
+    
+    <div class="container">
+        <div class="header">
+            <h1 class="title">Tactical RPS</h1>
+        </div>
+
+        <!-- Lobby -->
+        <div class="lobby" id="lobby">
+            <div class="lobby-card">
+                <div class="lobby-title">Create Game</div>
+                <div class="mode-select" id="mode-select">
+                    <div class="mode-option selected" data-mode="normal">
+                        <span class="mode-icon">⏱️</span>
+                        <span class="mode-name">Normal</span>
+                        <span class="mode-desc">15 sec/round</span>
+                    </div>
+                    <div class="mode-option" data-mode="blitz">
+                        <span class="mode-icon">⚡</span>
+                        <span class="mode-name">Blitz</span>
+                        <span class="mode-desc">6 sec/round</span>
+                    </div>
+                </div>
+                <button class="btn btn-primary" id="create-btn">Create Room</button>
+                <div class="room-code" id="room-code" style="display: none;">----</div>
+                <div class="status-text" id="create-status"></div>
+            </div>
+            
+            <div class="lobby-or">— OR —</div>
+            
+            <div class="lobby-card">
+                <div class="lobby-title">Join Game</div>
+                <input type="text" class="lobby-input" id="join-input" placeholder="Enter Code" maxlength="6">
+                <button class="btn btn-secondary" id="join-btn">Join Room</button>
+                <div class="status-text" id="join-status"></div>
+            </div>
+        </div>
+
+        <!-- Timer -->
+        <div class="timer-display" id="timer-display">
+            <span class="timer-icon">⏱️</span>
+            <span class="timer-value" id="timer-value">15</span>
+        </div>
+
+        <!-- Game -->
+        <div class="game-screen" id="game-screen">
+            <!-- Player bars -->
+            <div class="player-bar">
+                <div class="player-info you">
+                    <div class="player-label">You</div>
+                    <div class="player-hp">
+                        <div class="hp-bar-mini">
+                            <div class="hp-fill full" id="your-hp-bar" style="width: 100%"></div>
+                        </div>
+                        <div class="hp-text" id="your-hp-text">6</div>
+                    </div>
+                </div>
+                
+                <div class="round-badge">
+                    <div class="round-label">Round</div>
+                    <div class="round-num" id="round-num">1</div>
+                    <div class="mode-badge" id="mode-badge">Normal</div>
+                </div>
+                
+                <div class="player-info opponent">
+                    <div class="player-label">Opponent</div>
+                    <div class="player-hp">
+                        <div class="hp-bar-mini">
+                            <div class="hp-fill full" id="opp-hp-bar" style="width: 100%"></div>
+                        </div>
+                        <div class="hp-text" id="opp-hp-text">6</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Resources overview -->
+            <div class="resources-panel">
+                <div class="resources-grid">
+                    <div class="resource-section">
+                        <div class="resource-section-label">Your Arsenal</div>
+                        <div class="resource-row">
+                            <div class="resource-badge rock"><span>🪨</span><span class="count" id="your-rock">3</span></div>
+                            <div class="resource-badge paper"><span>📄</span><span class="count" id="your-paper">3</span></div>
+                            <div class="resource-badge scissors"><span>✂️</span><span class="count" id="your-scissors">3</span></div>
+                        </div>
+                    </div>
+                    <div class="resource-section">
+                        <div class="resource-section-label">Opponent's Arsenal</div>
+                        <div class="resource-row">
+                            <div class="resource-badge rock"><span>🪨</span><span class="count" id="opp-rock">3</span></div>
+                            <div class="resource-badge paper"><span>📄</span><span class="count" id="opp-paper">3</span></div>
+                            <div class="resource-badge scissors"><span>✂️</span><span class="count" id="opp-scissors">3</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Selection -->
+            <div class="selection-panel" id="selection-panel">
+                <div class="selection-title" id="selection-title">Choose Your Move</div>
+                <div class="selection-options">
+                    <div class="selection-btn rock" data-move="rock">
+                        <span class="icon">🪨</span>
+                        <span class="label">Rock</span>
+                        <span class="remaining" id="sel-rock">3</span>
+                    </div>
+                    <div class="selection-btn paper" data-move="paper">
+                        <span class="icon">📄</span>
+                        <span class="label">Paper</span>
+                        <span class="remaining" id="sel-paper">3</span>
+                    </div>
+                    <div class="selection-btn scissors" data-move="scissors">
+                        <span class="icon">✂️</span>
+                        <span class="label">Scissors</span>
+                        <span class="remaining" id="sel-scissors">3</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action -->
+            <div class="action-area">
+                <button class="btn btn-primary action-btn" id="lock-btn" disabled>Lock In</button>
+                <div class="action-status" id="action-status"></div>
+            </div>
+
+            <!-- Battle result -->
+            <div class="battle-result" id="battle-result">
+                <div class="battle-display">
+                    <div class="battle-choice you" id="result-you">❓</div>
+                    <div class="battle-vs">VS</div>
+                    <div class="battle-choice opponent" id="result-opp">❓</div>
+                </div>
+                <div class="battle-message" id="battle-message"></div>
+            </div>
+
+            <!-- History -->
+            <div class="history-panel">
+                <div class="history-title">Move History</div>
+                <div class="history-grid">
+                    <div class="history-row">
+                        <span class="history-label">You:</span>
+                        <div class="history-moves" id="your-history">
+                            <div class="history-move empty">-</div>
+                            <div class="history-move empty">-</div>
+                            <div class="history-move empty">-</div>
+                            <div class="history-move empty">-</div>
+                            <div class="history-move empty">-</div>
+                        </div>
+                    </div>
+                    <div class="history-row">
+                        <span class="history-label">Opp:</span>
+                        <div class="history-moves" id="opp-history">
+                            <div class="history-move empty">-</div>
+                            <div class="history-move empty">-</div>
+                            <div class="history-move empty">-</div>
+                            <div class="history-move empty">-</div>
+                            <div class="history-move empty">-</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Game Over -->
+    <div class="game-over-overlay" id="game-over">
+        <div class="game-over-title" id="game-over-title">Victory!</div>
+        <div class="game-over-subtitle" id="game-over-subtitle"></div>
+        <button class="btn btn-primary" onclick="location.reload()">Play Again</button>
+    </div>
+
+    <script>
+        // Constants
+        const STARTING_HP = 6;
+        const STARTING_RESOURCES = 3;
+        const DAMAGE = 2;
+        const HISTORY_LENGTH = 5;
+        const NORMAL_TIME = 15;
+        const BLITZ_TIME = 6;
+        
+        const ICONS = { rock: '🪨', paper: '📄', scissors: '✂️' };
+        const BEATS = { rock: 'scissors', paper: 'rock', scissors: 'paper' };
+
+        // State
+        let peer = null;
+        let conn = null;
+        let isHost = false;
+        let gameState = null;
+        let mySelection = null;
+        let opponentSelection = null;
+        let locked = false;
+        let opponentLocked = false;
+        let gameMode = 'normal'; // 'normal' or 'blitz'
+        let roundTime = NORMAL_TIME;
+        let timerInterval = null;
+        let timeLeft = 0;
+
+        // DOM
+        const lobby = document.getElementById('lobby');
+        const gameScreen = document.getElementById('game-screen');
+        const createBtn = document.getElementById('create-btn');
+        const joinBtn = document.getElementById('join-btn');
+        const joinInput = document.getElementById('join-input');
+        const roomCodeDisplay = document.getElementById('room-code');
+        const createStatus = document.getElementById('create-status');
+        const joinStatus = document.getElementById('join-status');
+        const lockBtn = document.getElementById('lock-btn');
+        const actionStatus = document.getElementById('action-status');
+
+        // Generate room code
+        function generateCode() {
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+            let code = '';
+            for (let i = 0; i < 5; i++) {
+                code += chars[Math.floor(Math.random() * chars.length)];
+            }
+            return code;
+        }
+
+        // Mode selection
+        document.querySelectorAll('.mode-option').forEach(opt => {
+            opt.addEventListener('click', () => {
+                document.querySelectorAll('.mode-option').forEach(o => o.classList.remove('selected'));
+                opt.classList.add('selected');
+                gameMode = opt.dataset.mode;
+                roundTime = gameMode === 'blitz' ? BLITZ_TIME : NORMAL_TIME;
+            });
+        });
+
+        // Create room
+        createBtn.addEventListener('click', () => {
+            const roomCode = generateCode();
+            createStatus.textContent = 'Creating room...';
+            createStatus.className = 'status-text';
+            
+            peer = new Peer('trps-' + roomCode);
+            
+            peer.on('open', (id) => {
+                roomCodeDisplay.style.display = 'block';
+                roomCodeDisplay.textContent = roomCode;
+                createStatus.textContent = 'Waiting for opponent...';
+                createBtn.disabled = true;
+                document.getElementById('mode-select').style.pointerEvents = 'none';
+                document.getElementById('mode-select').style.opacity = '0.5';
+                isHost = true;
+            });
+            
+            peer.on('connection', (connection) => {
+                conn = connection;
+                setupConnection();
+                createStatus.textContent = 'Opponent connected!';
+                createStatus.className = 'status-text connected';
+                
+                // Host starts the game
+                setTimeout(() => {
+                    initGame();
+                    sendState();
+                    startGame();
+                    startTimer();
+                }, 500);
+            });
+            
+            peer.on('error', (err) => {
+                createStatus.textContent = 'Error: ' + err.type;
+                createStatus.className = 'status-text error';
+            });
+        });
+
+        // Join room
+        joinBtn.addEventListener('click', () => {
+            const code = joinInput.value.toUpperCase().trim();
+            if (code.length < 4) {
+                joinStatus.textContent = 'Enter a valid code';
+                joinStatus.className = 'status-text error';
+                return;
+            }
+            
+            joinStatus.textContent = 'Connecting...';
+            joinStatus.className = 'status-text';
+            
+            peer = new Peer();
+            
+            peer.on('open', () => {
+                conn = peer.connect('trps-' + code);
+                
+                conn.on('open', () => {
+                    setupConnection();
+                    joinStatus.textContent = 'Connected!';
+                    joinStatus.className = 'status-text connected';
+                    isHost = false;
+                });
+                
+                conn.on('error', () => {
+                    joinStatus.textContent = 'Failed to connect';
+                    joinStatus.className = 'status-text error';
+                });
+            });
+            
+            peer.on('error', (err) => {
+                joinStatus.textContent = 'Error: ' + err.type;
+                joinStatus.className = 'status-text error';
+            });
+        });
+
+        // Setup connection handlers
+        function setupConnection() {
+            conn.on('data', (data) => {
+                handleMessage(data);
+            });
+            
+            conn.on('close', () => {
+                alert('Opponent disconnected');
+                location.reload();
+            });
+        }
+
+        // Initialize game state
+        function initGame() {
+            gameState = {
+                round: 1,
+                you: {
+                    hp: STARTING_HP,
+                    resources: { rock: STARTING_RESOURCES, paper: STARTING_RESOURCES, scissors: STARTING_RESOURCES },
+                    history: []
+                },
+                opponent: {
+                    hp: STARTING_HP,
+                    resources: { rock: STARTING_RESOURCES, paper: STARTING_RESOURCES, scissors: STARTING_RESOURCES },
+                    history: []
+                }
+            };
+        }
+
+        // Send game state to opponent
+        function sendState() {
+            if (conn && conn.open) {
+                // Send inverted state (their perspective)
+                conn.send({
+                    type: 'state',
+                    mode: gameMode,
+                    roundTime: roundTime,
+                    state: {
+                        round: gameState.round,
+                        you: gameState.opponent,
+                        opponent: gameState.you
+                    }
+                });
+            }
+        }
+
+        // Timer functions
+        function startTimer() {
+            timeLeft = roundTime;
+            updateTimerDisplay();
+            document.getElementById('timer-display').classList.add('active');
+            
+            if (timerInterval) clearInterval(timerInterval);
+            
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                updateTimerDisplay();
+                
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    timerExpired();
+                }
+            }, 1000);
+        }
+
+        function stopTimer() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+            document.getElementById('timer-display').classList.remove('active', 'urgent');
+        }
+
+        function updateTimerDisplay() {
+            const display = document.getElementById('timer-display');
+            const value = document.getElementById('timer-value');
+            value.textContent = timeLeft;
+            
+            if (timeLeft <= 3) {
+                display.classList.add('urgent');
+            } else {
+                display.classList.remove('urgent');
+            }
+        }
+
+        function timerExpired() {
+            if (locked) return; // Already locked in
+            
+            // Auto-select random available move
+            const available = Object.entries(gameState.you.resources)
+                .filter(([move, count]) => count > 0)
+                .map(([move]) => move);
+            
+            if (available.length > 0) {
+                mySelection = available[Math.floor(Math.random() * available.length)];
+                
+                // Visual feedback
+                document.querySelectorAll('.selection-btn').forEach(b => {
+                    b.classList.remove('selected');
+                    if (b.dataset.move === mySelection) {
+                        b.classList.add('selected');
+                    }
+                });
+                
+                // Auto lock
+                locked = true;
+                lockBtn.disabled = true;
+                document.querySelectorAll('.selection-btn').forEach(b => b.classList.add('locked'));
+                document.getElementById('selection-title').textContent = '⏰ Time! Random: ' + ICONS[mySelection];
+                actionStatus.textContent = 'Waiting for opponent...';
+                actionStatus.className = 'action-status waiting';
+                
+                sendMove(mySelection);
+                sendLock();
+                checkBothLocked();
+            }
+        }
+
+        // Send move
+        function sendMove(move) {
+            if (conn && conn.open) {
+                conn.send({ type: 'move', move: move });
+            }
+        }
+
+        // Send lock
+        function sendLock() {
+            if (conn && conn.open) {
+                conn.send({ type: 'locked' });
+            }
+        }
+
+        // Handle incoming messages
+        function handleMessage(data) {
+            switch (data.type) {
+                case 'state':
+                    gameState = data.state;
+                    gameMode = data.mode || 'normal';
+                    roundTime = data.roundTime || NORMAL_TIME;
+                    startGame();
+                    startTimer();
+                    break;
+                    
+                case 'locked':
+                    opponentLocked = true;
+                    actionStatus.textContent = 'Opponent locked in!';
+                    actionStatus.className = 'action-status';
+                    checkBothLocked();
+                    break;
+                    
+                case 'move':
+                    opponentSelection = data.move;
+                    checkBothLocked();
+                    break;
+                    
+                case 'reveal':
+                    opponentSelection = data.move;
+                    resolveRound();
+                    break;
+                    
+                case 'newround':
+                    gameState = data.state;
+                    nextRound();
+                    break;
+            }
+        }
+
+        // Start game UI
+        function startGame() {
+            lobby.classList.add('hidden');
+            gameScreen.classList.add('active');
+            
+            // Show mode badge
+            const badge = document.getElementById('mode-badge');
+            badge.textContent = gameMode === 'blitz' ? '⚡ Blitz' : '⏱️ Normal';
+            badge.classList.toggle('blitz', gameMode === 'blitz');
+            
+            updateUI();
+            setupSelectionListeners();
+        }
+
+        // Setup selection
+        function setupSelectionListeners() {
+            document.querySelectorAll('.selection-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    if (locked) return;
+                    const move = btn.dataset.move;
+                    if (gameState.you.resources[move] <= 0) return;
+                    
+                    // Clear previous
+                    document.querySelectorAll('.selection-btn').forEach(b => b.classList.remove('selected'));
+                    
+                    // Select this
+                    btn.classList.add('selected');
+                    mySelection = move;
+                    lockBtn.disabled = false;
+                });
+            });
+            
+            lockBtn.addEventListener('click', () => {
+                if (!mySelection || locked) return;
+                
+                locked = true;
+                lockBtn.disabled = true;
+                document.querySelectorAll('.selection-btn').forEach(b => b.classList.add('locked'));
+                
+                document.getElementById('selection-title').textContent = 'Locked In: ' + ICONS[mySelection];
+                actionStatus.textContent = 'Waiting for opponent...';
+                actionStatus.className = 'action-status waiting';
+                
+                sendMove(mySelection);
+                sendLock();
+                
+                checkBothLocked();
+            });
+        }
+
+        // Check if both players locked
+        function checkBothLocked() {
+            if (locked && opponentLocked && mySelection && opponentSelection) {
+                // Both ready, stop timer and reveal
+                stopTimer();
+                if (isHost) {
+                    // Host triggers reveal
+                    conn.send({ type: 'reveal', move: mySelection });
+                }
+                resolveRound();
+            }
+        }
+
+        // Resolve round
+        function resolveRound() {
+            const you = mySelection;
+            const opp = opponentSelection;
+            
+            // Update resources
+            gameState.you.resources[you]--;
+            gameState.opponent.resources[opp]--;
+            
+            // History
+            gameState.you.history.push(you);
+            gameState.opponent.history.push(opp);
+            if (gameState.you.history.length > HISTORY_LENGTH) gameState.you.history.shift();
+            if (gameState.opponent.history.length > HISTORY_LENGTH) gameState.opponent.history.shift();
+            
+            // Show result
+            const resultPanel = document.getElementById('battle-result');
+            const resultYou = document.getElementById('result-you');
+            const resultOpp = document.getElementById('result-opp');
+            const battleMsg = document.getElementById('battle-message');
+            
+            resultYou.textContent = ICONS[you];
+            resultOpp.textContent = ICONS[opp];
+            resultYou.className = 'battle-choice you';
+            resultOpp.className = 'battle-choice opponent';
+            
+            let msg = '';
+            if (you === opp) {
+                msg = "It's a tie!";
+                battleMsg.className = 'battle-message tie';
+            } else if (BEATS[you] === opp) {
+                // You win
+                gameState.opponent.hp -= DAMAGE;
+                msg = `${ICONS[you]} beats ${ICONS[opp]}! You deal ${DAMAGE} damage!`;
+                battleMsg.className = 'battle-message win';
+                resultYou.classList.add('winner');
+                resultOpp.classList.add('loser');
+            } else {
+                // Opponent wins
+                gameState.you.hp -= DAMAGE;
+                msg = `${ICONS[opp]} beats ${ICONS[you]}! You take ${DAMAGE} damage!`;
+                battleMsg.className = 'battle-message lose';
+                resultOpp.classList.add('winner');
+                resultYou.classList.add('loser');
+            }
+            
+            gameState.you.hp = Math.max(0, gameState.you.hp);
+            gameState.opponent.hp = Math.max(0, gameState.opponent.hp);
+            
+            battleMsg.textContent = msg;
+            resultPanel.classList.add('show');
+            
+            updateUI();
+            
+            // Check game over
+            setTimeout(() => {
+                if (gameState.you.hp <= 0 || gameState.opponent.hp <= 0) {
+                    endGame();
+                } else {
+                    // Check resource exhaustion
+                    const yourTotal = Object.values(gameState.you.resources).reduce((a,b) => a+b, 0);
+                    const oppTotal = Object.values(gameState.opponent.resources).reduce((a,b) => a+b, 0);
+                    
+                    if (yourTotal === 0 || oppTotal === 0) {
+                        endGame();
+                    } else {
+                        // Next round
+                        if (isHost) {
+                            gameState.round++;
+                            conn.send({ 
+                                type: 'newround', 
+                                state: {
+                                    round: gameState.round,
+                                    you: gameState.opponent,
+                                    opponent: gameState.you
+                                }
+                            });
+                        }
+                        setTimeout(() => nextRound(), 2000);
+                    }
+                }
+            }, 2000);
+        }
+
+        // Next round
+        function nextRound() {
+            mySelection = null;
+            opponentSelection = null;
+            locked = false;
+            opponentLocked = false;
+            
+            document.getElementById('battle-result').classList.remove('show');
+            document.querySelectorAll('.selection-btn').forEach(b => {
+                b.classList.remove('selected', 'locked');
+            });
+            document.getElementById('selection-title').textContent = 'Choose Your Move';
+            actionStatus.textContent = '';
+            lockBtn.disabled = true;
+            
+            updateUI();
+            startTimer();
+        }
+
+        // End game
+        function endGame() {
+            stopTimer();
+            const overlay = document.getElementById('game-over');
+            const title = document.getElementById('game-over-title');
+            const subtitle = document.getElementById('game-over-subtitle');
+            
+            if (gameState.you.hp > gameState.opponent.hp) {
+                title.textContent = 'Victory!';
+                title.className = 'game-over-title victory';
+                subtitle.textContent = `You won with ${gameState.you.hp} HP remaining`;
+            } else if (gameState.you.hp < gameState.opponent.hp) {
+                title.textContent = 'Defeat';
+                title.className = 'game-over-title defeat';
+                subtitle.textContent = `Opponent had ${gameState.opponent.hp} HP remaining`;
+            } else {
+                title.textContent = 'Draw!';
+                title.className = 'game-over-title';
+                subtitle.textContent = 'Both players eliminated';
+            }
+            
+            overlay.classList.add('show');
+        }
+
+        // Update UI
+        function updateUI() {
+            if (!gameState) return;
+            
+            // Round
+            document.getElementById('round-num').textContent = gameState.round;
+            
+            // HP
+            updateHP('your', gameState.you.hp);
+            updateHP('opp', gameState.opponent.hp);
+            
+            // Resources
+            ['rock', 'paper', 'scissors'].forEach(move => {
+                document.getElementById('your-' + move).textContent = gameState.you.resources[move];
+                document.getElementById('opp-' + move).textContent = gameState.opponent.resources[move];
+                document.getElementById('sel-' + move).textContent = gameState.you.resources[move];
+                
+                // Update selection buttons
+                const btn = document.querySelector(`.selection-btn.${move}`);
+                btn.classList.toggle('depleted', gameState.you.resources[move] <= 0);
+            });
+            
+            // History
+            updateHistory('your', gameState.you.history);
+            updateHistory('opp', gameState.opponent.history);
+        }
+
+        function updateHP(prefix, hp) {
+            const percent = (hp / STARTING_HP) * 100;
+            const bar = document.getElementById(prefix + '-hp-bar');
+            const text = document.getElementById(prefix + '-hp-text');
+            
+            bar.style.width = percent + '%';
+            text.textContent = hp;
+            
+            bar.className = 'hp-fill';
+            if (percent > 60) bar.classList.add('full');
+            else if (percent > 30) bar.classList.add('mid');
+            else bar.classList.add('low');
+        }
+
+        function updateHistory(prefix, history) {
+            const container = document.getElementById(prefix + '-history');
+            const moves = container.querySelectorAll('.history-move');
+            
+            for (let i = 0; i < HISTORY_LENGTH; i++) {
+                const move = history[i];
+                if (move) {
+                    moves[i].textContent = ICONS[move];
+                    moves[i].classList.remove('empty');
+                } else {
+                    moves[i].textContent = '-';
+                    moves[i].classList.add('empty');
+                }
+            }
+        }
+    </script>
+</body>
+</html>
