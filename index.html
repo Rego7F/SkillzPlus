@@ -1111,6 +1111,7 @@
                 </div>
                 <button class="btn btn-primary" id="create-btn">Create Room</button>
                 <div class="room-code" id="room-code" style="display: none;">----</div>
+                <button class="btn btn-secondary" id="copy-link-btn" style="display: none; margin-top: 10px;" onclick="copyInviteLink()">📋 Copy Invite Link</button>
                 <div class="status-text" id="create-status"></div>
             </div>
             
@@ -1311,6 +1312,35 @@
             return code;
         }
 
+        // Get room code from URL if present
+        function getRoomCodeFromURL() {
+            const params = new URLSearchParams(window.location.search);
+            return params.get('room') || params.get('r');
+        }
+
+        // Copy invite link to clipboard
+        function copyInviteLink() {
+            const code = roomCodeDisplay.textContent;
+            const link = `${window.location.origin}${window.location.pathname}?room=${code}`;
+            navigator.clipboard.writeText(link).then(() => {
+                const btn = document.getElementById('copy-link-btn');
+                btn.textContent = '✓ Copied!';
+                setTimeout(() => {
+                    btn.textContent = '📋 Copy Invite Link';
+                }, 2000);
+            });
+        }
+
+        // Auto-join if room code in URL
+        function checkAutoJoin() {
+            const code = getRoomCodeFromURL();
+            if (code) {
+                joinInput.value = code.toUpperCase();
+                joinStatus.textContent = 'Room code detected - click Join!';
+                joinStatus.className = 'status-text connected';
+            }
+        }
+
         // Mode selection
         document.querySelectorAll('.mode-option').forEach(opt => {
             opt.addEventListener('click', () => {
@@ -1332,7 +1362,9 @@
             peer.on('open', (id) => {
                 roomCodeDisplay.style.display = 'block';
                 roomCodeDisplay.textContent = roomCode;
-                createStatus.textContent = 'Waiting for opponent...';
+                document.getElementById('copy-link-btn').style.display = 'inline-block';
+                createStatus.textContent = 'Share the invite link!';
+                createStatus.className = 'status-text connected';
                 createBtn.disabled = true;
                 document.getElementById('mode-select').style.pointerEvents = 'none';
                 document.getElementById('mode-select').style.opacity = '0.5';
@@ -1371,28 +1403,59 @@
             
             joinStatus.textContent = 'Connecting...';
             joinStatus.className = 'status-text';
+            joinBtn.disabled = true;
+            
+            // Clear URL params to avoid confusion on refresh
+            if (window.history.replaceState) {
+                window.history.replaceState({}, '', window.location.pathname);
+            }
             
             peer = new Peer();
             
+            let connectionTimeout;
+            
             peer.on('open', () => {
-                conn = peer.connect('trps-' + code);
+                conn = peer.connect('trps-' + code, {
+                    reliable: true
+                });
+                
+                // Set connection timeout
+                connectionTimeout = setTimeout(() => {
+                    if (!conn || !conn.open) {
+                        joinStatus.textContent = 'Connection timed out - room may not exist';
+                        joinStatus.className = 'status-text error';
+                        joinBtn.disabled = false;
+                        if (peer) peer.destroy();
+                    }
+                }, 10000);
                 
                 conn.on('open', () => {
+                    clearTimeout(connectionTimeout);
                     setupConnection();
                     joinStatus.textContent = 'Connected!';
                     joinStatus.className = 'status-text connected';
                     isHost = false;
                 });
                 
-                conn.on('error', () => {
-                    joinStatus.textContent = 'Failed to connect';
+                conn.on('error', (err) => {
+                    clearTimeout(connectionTimeout);
+                    joinStatus.textContent = 'Connection failed - check code';
                     joinStatus.className = 'status-text error';
+                    joinBtn.disabled = false;
                 });
             });
             
             peer.on('error', (err) => {
-                joinStatus.textContent = 'Error: ' + err.type;
+                clearTimeout(connectionTimeout);
+                if (err.type === 'peer-unavailable') {
+                    joinStatus.textContent = 'Room not found - check code';
+                } else if (err.type === 'network') {
+                    joinStatus.textContent = 'Network error - check connection';
+                } else {
+                    joinStatus.textContent = 'Error: ' + err.type;
+                }
                 joinStatus.className = 'status-text error';
+                joinBtn.disabled = false;
             });
         });
 
@@ -1926,6 +1989,9 @@
 
         // Start petals
         createSakuraPetals();
+        
+        // Check for room code in URL
+        checkAutoJoin();
     </script>
 </body>
 </html>
