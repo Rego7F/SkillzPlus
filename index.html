@@ -309,6 +309,27 @@
             color: var(--hp-low);
         }
 
+        .rematch-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .rematch-status {
+            font-size: 0.9rem;
+            color: var(--gold);
+            min-height: 24px;
+        }
+
+        .rematch-status.waiting {
+            animation: pulse 1s ease-in-out infinite;
+        }
+
+        #rematch-btn:disabled {
+            opacity: 0.5;
+        }
+
         /* Game Screen */
         .game-screen {
             display: none;
@@ -921,7 +942,11 @@
     <div class="game-over-overlay" id="game-over">
         <div class="game-over-title" id="game-over-title">Victory!</div>
         <div class="game-over-subtitle" id="game-over-subtitle"></div>
-        <button class="btn btn-primary" onclick="location.reload()">Play Again</button>
+        <div class="rematch-section">
+            <button class="btn btn-primary" id="rematch-btn" onclick="requestRematch()">Rematch</button>
+            <div class="rematch-status" id="rematch-status"></div>
+        </div>
+        <button class="btn btn-secondary" onclick="location.reload()" style="margin-top: 15px;">Leave</button>
     </div>
 
     <script>
@@ -949,6 +974,8 @@
         let roundTime = NORMAL_TIME;
         let timerInterval = null;
         let timeLeft = 0;
+        let rematchRequested = false;
+        let opponentRematchRequested = false;
 
         // DOM
         const lobby = document.getElementById('lobby');
@@ -1221,7 +1248,79 @@
                     gameState = data.state;
                     nextRound();
                     break;
+                    
+                case 'rematch-request':
+                    opponentRematchRequested = true;
+                    checkRematch();
+                    break;
+                    
+                case 'rematch-start':
+                    gameState = data.state;
+                    startRematch();
+                    break;
             }
+        }
+
+        // Rematch functions
+        function requestRematch() {
+            rematchRequested = true;
+            document.getElementById('rematch-btn').disabled = true;
+            document.getElementById('rematch-status').textContent = 'Waiting for opponent...';
+            document.getElementById('rematch-status').className = 'rematch-status waiting';
+            
+            conn.send({ type: 'rematch-request' });
+            checkRematch();
+        }
+
+        function checkRematch() {
+            if (rematchRequested && opponentRematchRequested) {
+                // Both want rematch
+                document.getElementById('rematch-status').textContent = 'Starting rematch!';
+                document.getElementById('rematch-status').className = 'rematch-status';
+                
+                if (isHost) {
+                    // Host resets and sends new state
+                    initGame();
+                    conn.send({ 
+                        type: 'rematch-start',
+                        state: {
+                            round: gameState.round,
+                            you: gameState.opponent,
+                            opponent: gameState.you
+                        }
+                    });
+                    setTimeout(() => startRematch(), 500);
+                }
+            } else if (opponentRematchRequested && !rematchRequested) {
+                document.getElementById('rematch-status').textContent = 'Opponent wants rematch!';
+                document.getElementById('rematch-status').className = 'rematch-status';
+            }
+        }
+
+        function startRematch() {
+            // Reset states
+            rematchRequested = false;
+            opponentRematchRequested = false;
+            mySelection = null;
+            opponentSelection = null;
+            locked = false;
+            opponentLocked = false;
+            
+            // Hide game over, show game
+            document.getElementById('game-over').classList.remove('show');
+            document.getElementById('battle-result').classList.remove('show');
+            document.getElementById('rematch-btn').disabled = false;
+            document.getElementById('rematch-status').textContent = '';
+            
+            document.querySelectorAll('.selection-btn').forEach(b => {
+                b.classList.remove('selected', 'locked');
+            });
+            document.getElementById('selection-title').textContent = 'Choose Your Move';
+            actionStatus.textContent = '';
+            lockBtn.disabled = true;
+            
+            updateUI();
+            startTimer();
         }
 
         // Start game UI
