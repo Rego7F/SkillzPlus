@@ -1712,8 +1712,12 @@
                 tournamentState = {
                     yourWins: 0,
                     oppWins: 0,
-                    currentGame: 1
+                    currentGame: 1,
+                    suddenDeath: false
                 };
+            } else {
+                // Always reset suddenDeath when starting a new game within tournament
+                tournamentState.suddenDeath = false;
             }
         }
 
@@ -1729,7 +1733,8 @@
                     tournament: {
                         yourWins: tournamentState.oppWins, // Inverted for opponent
                         oppWins: tournamentState.yourWins,
-                        currentGame: tournamentState.currentGame
+                        currentGame: tournamentState.currentGame,
+                        suddenDeath: false // Always start fresh
                     },
                     state: {
                         round: gameState.round,
@@ -2426,6 +2431,7 @@
             opponentSelection = null;
             locked = false;
             opponentLocked = false;
+            tournamentState.suddenDeath = false; // Clear sudden death flag
             
             document.getElementById('battle-result').classList.remove('show');
             document.querySelectorAll('.selection-btn').forEach(b => {
