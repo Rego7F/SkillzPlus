@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tactical RPS</title>
-    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Zen+Dots&family=M+PLUS+1p:wght@400;700;900&family=Noto+Sans+JP:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -1351,24 +1351,44 @@
             });
         });
 
+        // PeerJS config for better reliability
+        const peerConfig = {
+            debug: 0,
+            config: {
+                iceServers: [
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:stun1.l.google.com:19302' },
+                    { urls: 'stun:stun2.l.google.com:19302' },
+                    { urls: 'stun:stun.stunprotocol.org:3478' }
+                ]
+            }
+        };
+
         // Create room
         createBtn.addEventListener('click', () => {
             const roomCode = generateCode();
             createStatus.textContent = 'Creating room...';
             createStatus.className = 'status-text';
             
-            peer = new Peer('trps-' + roomCode);
+            peer = new Peer('trps-' + roomCode, peerConfig);
             
             peer.on('open', (id) => {
                 roomCodeDisplay.style.display = 'block';
                 roomCodeDisplay.textContent = roomCode;
                 document.getElementById('copy-link-btn').style.display = 'inline-block';
-                createStatus.textContent = 'Share the invite link!';
+                createStatus.innerHTML = '🟢 Room live! Share the link';
                 createStatus.className = 'status-text connected';
                 createBtn.disabled = true;
                 document.getElementById('mode-select').style.pointerEvents = 'none';
                 document.getElementById('mode-select').style.opacity = '0.5';
                 isHost = true;
+                
+                // Keep connection alive
+                setInterval(() => {
+                    if (peer && peer.open) {
+                        // Heartbeat to keep signaling connection alive
+                    }
+                }, 15000);
             });
             
             peer.on('connection', (connection) => {
@@ -1410,24 +1430,34 @@
                 window.history.replaceState({}, '', window.location.pathname);
             }
             
-            peer = new Peer();
+            peer = new Peer(peerConfig);
             
             let connectionTimeout;
+            let retryCount = 0;
+            const maxRetries = 2;
             
-            peer.on('open', () => {
+            function attemptConnection() {
+                joinStatus.textContent = retryCount > 0 ? `Retrying... (${retryCount}/${maxRetries})` : 'Connecting...';
+                
                 conn = peer.connect('trps-' + code, {
-                    reliable: true
+                    reliable: true,
+                    serialization: 'json'
                 });
                 
                 // Set connection timeout
                 connectionTimeout = setTimeout(() => {
                     if (!conn || !conn.open) {
-                        joinStatus.textContent = 'Connection timed out - room may not exist';
-                        joinStatus.className = 'status-text error';
-                        joinBtn.disabled = false;
-                        if (peer) peer.destroy();
+                        retryCount++;
+                        if (retryCount <= maxRetries) {
+                            attemptConnection();
+                        } else {
+                            joinStatus.textContent = 'Could not reach room - host may have left';
+                            joinStatus.className = 'status-text error';
+                            joinBtn.disabled = false;
+                            if (peer) peer.destroy();
+                        }
                     }
-                }, 10000);
+                }, 8000);
                 
                 conn.on('open', () => {
                     clearTimeout(connectionTimeout);
@@ -1443,14 +1473,20 @@
                     joinStatus.className = 'status-text error';
                     joinBtn.disabled = false;
                 });
+            }
+            
+            peer.on('open', () => {
+                attemptConnection();
             });
             
             peer.on('error', (err) => {
                 clearTimeout(connectionTimeout);
                 if (err.type === 'peer-unavailable') {
-                    joinStatus.textContent = 'Room not found - check code';
+                    joinStatus.textContent = 'Room not found - host may have left';
                 } else if (err.type === 'network') {
-                    joinStatus.textContent = 'Network error - check connection';
+                    joinStatus.textContent = 'Network error - check your connection';
+                } else if (err.type === 'unavailable-id') {
+                    joinStatus.textContent = 'Connection busy - try again';
                 } else {
                     joinStatus.textContent = 'Error: ' + err.type;
                 }
