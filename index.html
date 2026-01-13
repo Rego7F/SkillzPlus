@@ -1172,6 +1172,28 @@
             letter-spacing: 2px;
             animation: pulse 1s ease-in-out infinite;
         }
+
+        .transition-result.sudden-death {
+            color: var(--gold);
+            text-shadow: 0 0 30px var(--gold), 0 0 60px var(--gold);
+            animation: suddenDeathPulse 0.5s ease-in-out infinite;
+        }
+
+        @keyframes suddenDeathPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .sudden-death-badge {
+            background: linear-gradient(135deg, var(--gold) 0%, #ff6b6b 100%);
+            color: #000;
+            padding: 3px 10px;
+            border-radius: 4px;
+            font-size: 0.6rem;
+            font-weight: 900;
+            letter-spacing: 2px;
+            animation: suddenDeathPulse 0.5s ease-in-out infinite;
+        }
     </style>
 </head>
 <body>
@@ -1411,7 +1433,8 @@
         let tournamentState = {
             yourWins: 0,
             oppWins: 0,
-            currentGame: 1
+            currentGame: 1,
+            suddenDeath: false
         };
 
         // DOM
@@ -1873,6 +1896,14 @@
                     tournamentState = data.tournament;
                     endTournament(data.youWon);
                     break;
+                    
+                case 'suddendeath':
+                    gameState = data.state;
+                    tournamentState = data.tournament;
+                    showSuddenDeathTransition(() => {
+                        startSuddenDeath();
+                    });
+                    break;
             }
         }
 
@@ -2142,12 +2173,21 @@
             
             // If tournament mode, update wins and check if tournament continues
             if (matchType === 'tournament') {
-                if (!isDraw) {
-                    if (iWon) {
-                        tournamentState.yourWins++;
-                    } else {
-                        tournamentState.oppWins++;
+                // Handle DRAW - trigger sudden death
+                if (isDraw) {
+                    if (isHost) {
+                        triggerSuddenDeath();
                     }
+                    return;
+                }
+                
+                // Clear sudden death flag on decisive win
+                tournamentState.suddenDeath = false;
+                
+                if (iWon) {
+                    tournamentState.yourWins++;
+                } else {
+                    tournamentState.oppWins++;
                 }
                 
                 // Check if tournament is over
@@ -2159,7 +2199,8 @@
                             tournament: {
                                 yourWins: tournamentState.oppWins,
                                 oppWins: tournamentState.yourWins,
-                                currentGame: tournamentState.currentGame
+                                currentGame: tournamentState.currentGame,
+                                suddenDeath: false
                             },
                             youWon: !iWon
                         });
@@ -2183,7 +2224,8 @@
                         tournament: {
                             yourWins: tournamentState.oppWins,
                             oppWins: tournamentState.yourWins,
-                            currentGame: tournamentState.currentGame
+                            currentGame: tournamentState.currentGame,
+                            suddenDeath: false
                         },
                         youWonLast: !iWon
                     });
@@ -2197,6 +2239,78 @@
             
             // Single game mode - show game over
             showGameOver(iWon, isDraw);
+        }
+        
+        // Trigger sudden death mode
+        function triggerSuddenDeath() {
+            tournamentState.suddenDeath = true;
+            
+            // Reset resources only, keep HP as-is (both equal)
+            gameState.you.resources = { rock: STARTING_RESOURCES, paper: STARTING_RESOURCES, scissors: STARTING_RESOURCES };
+            gameState.opponent.resources = { rock: STARTING_RESOURCES, paper: STARTING_RESOURCES, scissors: STARTING_RESOURCES };
+            gameState.you.history = [];
+            gameState.opponent.history = [];
+            gameState.round = 1;
+            
+            // Notify opponent
+            conn.send({
+                type: 'suddendeath',
+                state: {
+                    round: gameState.round,
+                    you: gameState.opponent,
+                    opponent: gameState.you
+                },
+                tournament: {
+                    yourWins: tournamentState.oppWins,
+                    oppWins: tournamentState.yourWins,
+                    currentGame: tournamentState.currentGame,
+                    suddenDeath: true
+                }
+            });
+            
+            showSuddenDeathTransition(() => {
+                startSuddenDeath();
+            });
+        }
+        
+        // Show sudden death transition
+        function showSuddenDeathTransition(callback) {
+            const overlay = document.getElementById('game-transition');
+            const result = document.getElementById('transition-result');
+            const score = document.getElementById('transition-score');
+            const next = document.getElementById('transition-next');
+            
+            result.textContent = '⚡ SUDDEN DEATH ⚡';
+            result.className = 'transition-result sudden-death';
+            score.innerHTML = `<span class="your-score">${tournamentState.yourWins}</span> - <span class="opp-score">${tournamentState.oppWins}</span>`;
+            next.textContent = 'First to win a round takes the game!';
+            
+            overlay.classList.add('show');
+            
+            setTimeout(() => {
+                overlay.classList.remove('show');
+                if (callback) callback();
+            }, 2500);
+        }
+        
+        // Start sudden death
+        function startSuddenDeath() {
+            mySelection = null;
+            opponentSelection = null;
+            locked = false;
+            opponentLocked = false;
+            
+            document.getElementById('battle-result').classList.remove('show');
+            document.querySelectorAll('.selection-btn').forEach(b => {
+                b.classList.remove('selected', 'locked');
+            });
+            document.getElementById('selection-title').textContent = '⚡ SUDDEN DEATH ⚡';
+            actionStatus.textContent = '';
+            lockBtn.disabled = true;
+            
+            updateUI();
+            updateTournamentUI();
+            startTimer();
         }
         
         // Show game over screen (single game or tournament winner)
@@ -2295,6 +2409,16 @@
                 document.getElementById('tournament-score').style.display = 'flex';
                 document.getElementById('your-wins').textContent = tournamentState.yourWins;
                 document.getElementById('opp-wins').textContent = tournamentState.oppWins;
+                
+                // Update mode badge for sudden death
+                const badge = document.getElementById('mode-badge');
+                if (tournamentState.suddenDeath) {
+                    badge.innerHTML = '⚡ SUDDEN DEATH';
+                    badge.className = 'mode-badge sudden-death-badge';
+                } else {
+                    badge.textContent = gameMode === 'blitz' ? '🏆⚡' : '🏆 Bo5';
+                    badge.className = 'mode-badge';
+                }
             } else {
                 document.getElementById('tournament-score').style.display = 'none';
             }
