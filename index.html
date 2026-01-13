@@ -2070,20 +2070,33 @@
             resultOpp.className = 'battle-choice opponent';
             
             let msg = '';
+            let iWonRound = false;
+            let iLostRound = false;
+            
             if (you === opp) {
-                msg = "It's a tie!";
+                msg = tournamentState.suddenDeath ? "Tie! Go again!" : "It's a tie!";
                 battleMsg.className = 'battle-message tie';
             } else if (BEATS[you] === opp) {
-                // You win
-                gameState.opponent.hp -= DAMAGE;
-                msg = `${ICONS[you]} beats ${ICONS[opp]}! You deal ${DAMAGE} damage!`;
+                // You win the round
+                iWonRound = true;
+                if (tournamentState.suddenDeath) {
+                    msg = `${ICONS[you]} beats ${ICONS[opp]}! YOU WIN!`;
+                } else {
+                    gameState.opponent.hp -= DAMAGE;
+                    msg = `${ICONS[you]} beats ${ICONS[opp]}! You deal ${DAMAGE} damage!`;
+                }
                 battleMsg.className = 'battle-message win';
                 resultYou.classList.add('winner');
                 resultOpp.classList.add('loser');
             } else {
-                // Opponent wins
-                gameState.you.hp -= DAMAGE;
-                msg = `${ICONS[opp]} beats ${ICONS[you]}! You take ${DAMAGE} damage!`;
+                // Opponent wins the round
+                iLostRound = true;
+                if (tournamentState.suddenDeath) {
+                    msg = `${ICONS[opp]} beats ${ICONS[you]}! YOU LOSE!`;
+                } else {
+                    gameState.you.hp -= DAMAGE;
+                    msg = `${ICONS[opp]} beats ${ICONS[you]}! You take ${DAMAGE} damage!`;
+                }
                 battleMsg.className = 'battle-message lose';
                 resultOpp.classList.add('winner');
                 resultYou.classList.add('loser');
@@ -2096,6 +2109,50 @@
             resultPanel.classList.add('show');
             
             updateUI();
+            
+            // SUDDEN DEATH: First to win a round wins the game
+            if (tournamentState.suddenDeath && (iWonRound || iLostRound)) {
+                setTimeout(() => {
+                    if (isHost) {
+                        // Set HP to reflect winner
+                        if (iWonRound) {
+                            gameState.opponent.hp = 0;
+                            gameState.you.hp = 1;
+                        } else {
+                            gameState.you.hp = 0;
+                            gameState.opponent.hp = 1;
+                        }
+                        
+                        conn.send({ 
+                            type: 'gameover',
+                            yourHp: gameState.opponent.hp,
+                            oppHp: gameState.you.hp,
+                            iWon: iLostRound // Client won if host lost
+                        });
+                        setTimeout(() => endGame(), 500);
+                    }
+                }, 2000);
+                return;
+            }
+            
+            // SUDDEN DEATH TIE: Keep going
+            if (tournamentState.suddenDeath && !iWonRound && !iLostRound) {
+                setTimeout(() => {
+                    if (isHost) {
+                        gameState.round++;
+                        conn.send({ 
+                            type: 'newround', 
+                            state: {
+                                round: gameState.round,
+                                you: gameState.opponent,
+                                opponent: gameState.you
+                            }
+                        });
+                        setTimeout(() => nextRound(), 2000);
+                    }
+                }, 2000);
+                return;
+            }
             
             // Check game over - only host decides, then broadcasts
             setTimeout(() => {
@@ -2283,7 +2340,7 @@
             result.textContent = '⚡ SUDDEN DEATH ⚡';
             result.className = 'transition-result sudden-death';
             score.innerHTML = `<span class="your-score">${tournamentState.yourWins}</span> - <span class="opp-score">${tournamentState.oppWins}</span>`;
-            next.textContent = 'First to win a round takes the game!';
+            next.textContent = 'Next hand wins!';
             
             overlay.classList.add('show');
             
