@@ -1351,15 +1351,29 @@
             });
         });
 
-        // PeerJS config for better reliability
+        // PeerJS config with TURN servers for NAT traversal
         const peerConfig = {
-            debug: 0,
+            debug: 1,
             config: {
                 iceServers: [
                     { urls: 'stun:stun.l.google.com:19302' },
                     { urls: 'stun:stun1.l.google.com:19302' },
-                    { urls: 'stun:stun2.l.google.com:19302' },
-                    { urls: 'stun:stun.stunprotocol.org:3478' }
+                    // Free TURN servers from Open Relay Project
+                    {
+                        urls: 'turn:openrelay.metered.ca:80',
+                        username: 'openrelayproject',
+                        credential: 'openrelayproject'
+                    },
+                    {
+                        urls: 'turn:openrelay.metered.ca:443',
+                        username: 'openrelayproject',
+                        credential: 'openrelayproject'
+                    },
+                    {
+                        urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+                        username: 'openrelayproject',
+                        credential: 'openrelayproject'
+                    }
                 ]
             }
         };
@@ -1407,8 +1421,14 @@
             });
             
             peer.on('error', (err) => {
+                console.error('Peer error:', err);
                 createStatus.textContent = 'Error: ' + err.type;
                 createStatus.className = 'status-text error';
+            });
+            
+            peer.on('disconnected', () => {
+                createStatus.textContent = '🟡 Reconnecting to server...';
+                peer.reconnect();
             });
         });
 
@@ -1437,27 +1457,28 @@
             const maxRetries = 2;
             
             function attemptConnection() {
-                joinStatus.textContent = retryCount > 0 ? `Retrying... (${retryCount}/${maxRetries})` : 'Connecting...';
+                joinStatus.textContent = retryCount > 0 ? `Retrying... (${retryCount}/${maxRetries})` : 'Connecting to room...';
                 
                 conn = peer.connect('trps-' + code, {
                     reliable: true,
                     serialization: 'json'
                 });
                 
-                // Set connection timeout
+                // Set connection timeout (longer for TURN relay)
                 connectionTimeout = setTimeout(() => {
                     if (!conn || !conn.open) {
                         retryCount++;
                         if (retryCount <= maxRetries) {
+                            if (conn) conn.close();
                             attemptConnection();
                         } else {
-                            joinStatus.textContent = 'Could not reach room - host may have left';
+                            joinStatus.textContent = 'Could not connect - host may have left or network blocked';
                             joinStatus.className = 'status-text error';
                             joinBtn.disabled = false;
                             if (peer) peer.destroy();
                         }
                     }
-                }, 8000);
+                }, 12000);
                 
                 conn.on('open', () => {
                     clearTimeout(connectionTimeout);
@@ -1475,8 +1496,14 @@
                 });
             }
             
-            peer.on('open', () => {
+            peer.on('open', (myId) => {
+                joinStatus.textContent = 'Finding room...';
                 attemptConnection();
+            });
+            
+            peer.on('disconnected', () => {
+                joinStatus.textContent = 'Disconnected from server, reconnecting...';
+                peer.reconnect();
             });
             
             peer.on('error', (err) => {
