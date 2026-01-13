@@ -634,6 +634,28 @@
             line-height: 1;
         }
 
+        .tournament-score {
+            font-family: 'Zen Dots', cursive;
+            font-size: 1rem;
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .tournament-score .your-wins {
+            color: var(--p1-accent);
+        }
+
+        .tournament-score .opp-wins {
+            color: var(--p2-accent);
+        }
+
+        .tournament-score .score-dash {
+            color: var(--sakura-dark);
+        }
+
         /* Resources */
         .resources-panel {
             background: var(--bg-card);
@@ -1083,6 +1105,73 @@
             position: relative;
             z-index: 1;
         }
+
+        /* Game Transition Overlay */
+        .game-transition-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(26, 10, 20, 0.95);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 90;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.4s;
+        }
+
+        .game-transition-overlay.show {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .transition-content {
+            text-align: center;
+        }
+
+        .transition-result {
+            font-family: 'Noto Sans JP', sans-serif;
+            font-size: 2.5rem;
+            font-weight: 900;
+            color: var(--gold);
+            margin-bottom: 20px;
+            letter-spacing: 5px;
+        }
+
+        .transition-result.win {
+            color: var(--hp-full);
+        }
+
+        .transition-result.lose {
+            color: var(--hp-low);
+        }
+
+        .transition-score {
+            font-family: 'Zen Dots', cursive;
+            font-size: 3rem;
+            margin-bottom: 30px;
+            letter-spacing: 8px;
+        }
+
+        .transition-score .your-score {
+            color: var(--p1-accent);
+        }
+
+        .transition-score .opp-score {
+            color: var(--p2-accent);
+        }
+
+        .transition-next {
+            font-family: 'M PLUS 1p', sans-serif;
+            font-size: 1rem;
+            color: var(--sakura);
+            letter-spacing: 2px;
+            animation: pulse 1s ease-in-out infinite;
+        }
     </style>
 </head>
 <body>
@@ -1097,6 +1186,18 @@
         <div class="lobby" id="lobby">
             <div class="lobby-card">
                 <div class="lobby-title">Create Game</div>
+                <div class="mode-select" id="match-type-select">
+                    <div class="mode-option selected" data-match="single">
+                        <span class="mode-icon">🎮</span>
+                        <span class="mode-name">Single</span>
+                        <span class="mode-desc">1 game</span>
+                    </div>
+                    <div class="mode-option" data-match="tournament">
+                        <span class="mode-icon">🏆</span>
+                        <span class="mode-name">Tournament</span>
+                        <span class="mode-desc">Best of 5</span>
+                    </div>
+                </div>
                 <div class="mode-select" id="mode-select">
                     <div class="mode-option selected" data-mode="normal">
                         <span class="mode-icon">⏱️</span>
@@ -1146,6 +1247,11 @@
                 </div>
                 
                 <div class="round-badge">
+                    <div class="tournament-score" id="tournament-score" style="display: none;">
+                        <span class="your-wins" id="your-wins">0</span>
+                        <span class="score-dash">-</span>
+                        <span class="opp-wins" id="opp-wins">0</span>
+                    </div>
                     <div class="round-label">Round</div>
                     <div class="round-num" id="round-num">1</div>
                     <div class="mode-badge" id="mode-badge">Normal</div>
@@ -1251,6 +1357,15 @@
         </div>
     </div>
 
+    <!-- Game Transition (between tournament games) -->
+    <div class="game-transition-overlay" id="game-transition">
+        <div class="transition-content">
+            <div class="transition-result" id="transition-result">Game 1 Complete!</div>
+            <div class="transition-score" id="transition-score">You: 1 - Opp: 0</div>
+            <div class="transition-next" id="transition-next">Next game starting...</div>
+        </div>
+    </div>
+
     <!-- Game Over -->
     <div class="game-over-overlay" id="game-over">
         <div class="game-over-title" id="game-over-title">Victory!</div>
@@ -1270,6 +1385,7 @@
         const HISTORY_LENGTH = 5;
         const NORMAL_TIME = 15;
         const BLITZ_TIME = 6;
+        const GAMES_TO_WIN = 3; // Best of 5
         
         const ICONS = { rock: '🪨', paper: '📄', scissors: '✂️' };
         const BEATS = { rock: 'scissors', paper: 'rock', scissors: 'paper' };
@@ -1284,11 +1400,19 @@
         let locked = false;
         let opponentLocked = false;
         let gameMode = 'normal'; // 'normal' or 'blitz'
+        let matchType = 'single'; // 'single' or 'tournament'
         let roundTime = NORMAL_TIME;
         let timerInterval = null;
         let timeLeft = 0;
         let rematchRequested = false;
         let opponentRematchRequested = false;
+        
+        // Tournament state
+        let tournamentState = {
+            yourWins: 0,
+            oppWins: 0,
+            currentGame: 1
+        };
 
         // DOM
         const lobby = document.getElementById('lobby');
@@ -1341,10 +1465,19 @@
             }
         }
 
-        // Mode selection
-        document.querySelectorAll('.mode-option').forEach(opt => {
+        // Match type selection (single vs tournament)
+        document.querySelectorAll('#match-type-select .mode-option').forEach(opt => {
             opt.addEventListener('click', () => {
-                document.querySelectorAll('.mode-option').forEach(o => o.classList.remove('selected'));
+                document.querySelectorAll('#match-type-select .mode-option').forEach(o => o.classList.remove('selected'));
+                opt.classList.add('selected');
+                matchType = opt.dataset.match;
+            });
+        });
+
+        // Speed mode selection (normal vs blitz)
+        document.querySelectorAll('#mode-select .mode-option').forEach(opt => {
+            opt.addEventListener('click', () => {
+                document.querySelectorAll('#mode-select .mode-option').forEach(o => o.classList.remove('selected'));
                 opt.classList.add('selected');
                 gameMode = opt.dataset.mode;
                 roundTime = gameMode === 'blitz' ? BLITZ_TIME : NORMAL_TIME;
@@ -1395,6 +1528,8 @@
                 createBtn.disabled = true;
                 document.getElementById('mode-select').style.pointerEvents = 'none';
                 document.getElementById('mode-select').style.opacity = '0.5';
+                document.getElementById('match-type-select').style.pointerEvents = 'none';
+                document.getElementById('match-type-select').style.opacity = '0.5';
                 isHost = true;
                 
                 // Keep connection alive
@@ -1535,7 +1670,7 @@
         }
 
         // Initialize game state
-        function initGame() {
+        function initGame(resetTournament = true) {
             gameState = {
                 round: 1,
                 you: {
@@ -1549,6 +1684,14 @@
                     history: []
                 }
             };
+            
+            if (resetTournament) {
+                tournamentState = {
+                    yourWins: 0,
+                    oppWins: 0,
+                    currentGame: 1
+                };
+            }
         }
 
         // Send game state to opponent
@@ -1558,7 +1701,13 @@
                 conn.send({
                     type: 'state',
                     mode: gameMode,
+                    matchType: matchType,
                     roundTime: roundTime,
+                    tournament: {
+                        yourWins: tournamentState.oppWins, // Inverted for opponent
+                        oppWins: tournamentState.yourWins,
+                        currentGame: tournamentState.currentGame
+                    },
                     state: {
                         round: gameState.round,
                         you: gameState.opponent,
@@ -1660,7 +1809,11 @@
                 case 'state':
                     gameState = data.state;
                     gameMode = data.mode || 'normal';
+                    matchType = data.matchType || 'single';
                     roundTime = data.roundTime || NORMAL_TIME;
+                    if (data.tournament) {
+                        tournamentState = data.tournament;
+                    }
                     startGame();
                     startTimer();
                     break;
@@ -1694,6 +1847,9 @@
                     
                 case 'rematch-start':
                     gameState = data.state;
+                    if (data.tournament) {
+                        tournamentState = data.tournament;
+                    }
                     startRematch();
                     break;
                     
@@ -1701,7 +1857,21 @@
                     gameState.you.hp = data.yourHp;
                     gameState.opponent.hp = data.oppHp;
                     updateUI();
-                    setTimeout(() => endGame(), 500);
+                    setTimeout(() => endGame(data.iWon), 500);
+                    break;
+                    
+                case 'nextgame':
+                    // Opponent (host) starting next tournament game
+                    gameState = data.state;
+                    tournamentState = data.tournament;
+                    showGameTransition(data.youWonLast, () => {
+                        startNextTournamentGame();
+                    });
+                    break;
+                    
+                case 'tournament-end':
+                    tournamentState = data.tournament;
+                    endTournament(data.youWon);
                     break;
             }
         }
@@ -1725,13 +1895,18 @@
                 
                 if (isHost) {
                     // Host resets and sends new state
-                    initGame();
+                    initGame(true); // Full reset including tournament
                     conn.send({ 
                         type: 'rematch-start',
                         state: {
                             round: gameState.round,
                             you: gameState.opponent,
                             opponent: gameState.you
+                        },
+                        tournament: {
+                            yourWins: tournamentState.oppWins,
+                            oppWins: tournamentState.yourWins,
+                            currentGame: tournamentState.currentGame
                         }
                     });
                     setTimeout(() => startRematch(), 500);
@@ -1765,6 +1940,7 @@
             lockBtn.disabled = true;
             
             updateUI();
+            updateTournamentUI();
             startTimer();
         }
 
@@ -1775,10 +1951,15 @@
             
             // Show mode badge
             const badge = document.getElementById('mode-badge');
-            badge.textContent = gameMode === 'blitz' ? '⚡ Blitz' : '⏱️ Normal';
+            if (matchType === 'tournament') {
+                badge.textContent = gameMode === 'blitz' ? '🏆⚡' : '🏆 Bo5';
+            } else {
+                badge.textContent = gameMode === 'blitz' ? '⚡ Blitz' : '⏱️ Normal';
+            }
             badge.classList.toggle('blitz', gameMode === 'blitz');
             
             updateUI();
+            updateTournamentUI();
             setupSelectionListeners();
         }
 
@@ -1896,10 +2077,12 @@
                 if (isHost) {
                     if (gameOver) {
                         // Host tells client game is over
+                        const hostWon = gameState.you.hp > gameState.opponent.hp;
                         conn.send({ 
                             type: 'gameover',
                             yourHp: gameState.opponent.hp,
-                            oppHp: gameState.you.hp
+                            oppHp: gameState.you.hp,
+                            iWon: !hostWon // Client won if host lost
                         });
                         setTimeout(() => endGame(), 500);
                     } else {
@@ -1944,28 +2127,177 @@
             startTimer();
         }
 
-        // End game
-        function endGame() {
+        // End game (single game finished)
+        function endGame(iWonOverride = null) {
+            stopTimer();
+            
+            // Determine winner
+            let iWon;
+            if (iWonOverride !== null && iWonOverride !== undefined) {
+                iWon = iWonOverride;
+            } else {
+                iWon = gameState.you.hp > gameState.opponent.hp;
+            }
+            const isDraw = gameState.you.hp === gameState.opponent.hp;
+            
+            // If tournament mode, update wins and check if tournament continues
+            if (matchType === 'tournament') {
+                if (!isDraw) {
+                    if (iWon) {
+                        tournamentState.yourWins++;
+                    } else {
+                        tournamentState.oppWins++;
+                    }
+                }
+                
+                // Check if tournament is over
+                if (tournamentState.yourWins >= GAMES_TO_WIN || tournamentState.oppWins >= GAMES_TO_WIN) {
+                    // Tournament over
+                    if (isHost) {
+                        conn.send({
+                            type: 'tournament-end',
+                            tournament: {
+                                yourWins: tournamentState.oppWins,
+                                oppWins: tournamentState.yourWins,
+                                currentGame: tournamentState.currentGame
+                            },
+                            youWon: !iWon
+                        });
+                    }
+                    endTournament(tournamentState.yourWins >= GAMES_TO_WIN);
+                    return;
+                }
+                
+                // Tournament continues - show transition then start next game
+                if (isHost) {
+                    tournamentState.currentGame++;
+                    initGame(false); // Reset game but keep tournament
+                    
+                    conn.send({
+                        type: 'nextgame',
+                        state: {
+                            round: gameState.round,
+                            you: gameState.opponent,
+                            opponent: gameState.you
+                        },
+                        tournament: {
+                            yourWins: tournamentState.oppWins,
+                            oppWins: tournamentState.yourWins,
+                            currentGame: tournamentState.currentGame
+                        },
+                        youWonLast: !iWon
+                    });
+                    
+                    showGameTransition(iWon, () => {
+                        startNextTournamentGame();
+                    });
+                }
+                return;
+            }
+            
+            // Single game mode - show game over
+            showGameOver(iWon, isDraw);
+        }
+        
+        // Show game over screen (single game or tournament winner)
+        function showGameOver(iWon, isDraw = false) {
+            const overlay = document.getElementById('game-over');
+            const title = document.getElementById('game-over-title');
+            const subtitle = document.getElementById('game-over-subtitle');
+            
+            if (iWon) {
+                title.textContent = 'Victory!';
+                title.className = 'game-over-title victory';
+                subtitle.textContent = `You won with ${gameState.you.hp} HP remaining`;
+            } else if (isDraw) {
+                title.textContent = 'Draw!';
+                title.className = 'game-over-title';
+                subtitle.textContent = 'Both players eliminated';
+            } else {
+                title.textContent = 'Defeat';
+                title.className = 'game-over-title defeat';
+                subtitle.textContent = `Opponent had ${gameState.opponent.hp} HP remaining`;
+            }
+            
+            overlay.classList.add('show');
+        }
+        
+        // Show game transition (between tournament games)
+        function showGameTransition(iWonGame, callback) {
+            const overlay = document.getElementById('game-transition');
+            const result = document.getElementById('transition-result');
+            const score = document.getElementById('transition-score');
+            const next = document.getElementById('transition-next');
+            
+            if (iWonGame) {
+                result.textContent = `You won Game ${tournamentState.currentGame - 1}!`;
+                result.className = 'transition-result win';
+            } else {
+                result.textContent = `You lost Game ${tournamentState.currentGame - 1}`;
+                result.className = 'transition-result lose';
+            }
+            
+            score.innerHTML = `<span class="your-score">${tournamentState.yourWins}</span> - <span class="opp-score">${tournamentState.oppWins}</span>`;
+            next.textContent = `Game ${tournamentState.currentGame} starting...`;
+            
+            overlay.classList.add('show');
+            
+            setTimeout(() => {
+                overlay.classList.remove('show');
+                if (callback) callback();
+            }, 2500);
+        }
+        
+        // Start next game in tournament
+        function startNextTournamentGame() {
+            // Reset round state
+            mySelection = null;
+            opponentSelection = null;
+            locked = false;
+            opponentLocked = false;
+            
+            document.getElementById('battle-result').classList.remove('show');
+            document.querySelectorAll('.selection-btn').forEach(b => {
+                b.classList.remove('selected', 'locked');
+            });
+            document.getElementById('selection-title').textContent = 'Choose Your Move';
+            actionStatus.textContent = '';
+            lockBtn.disabled = true;
+            
+            updateUI();
+            updateTournamentUI();
+            startTimer();
+        }
+        
+        // End tournament
+        function endTournament(iWonTournament) {
             stopTimer();
             const overlay = document.getElementById('game-over');
             const title = document.getElementById('game-over-title');
             const subtitle = document.getElementById('game-over-subtitle');
             
-            if (gameState.you.hp > gameState.opponent.hp) {
-                title.textContent = 'Victory!';
+            if (iWonTournament) {
+                title.textContent = '🏆 Champion!';
                 title.className = 'game-over-title victory';
-                subtitle.textContent = `You won with ${gameState.you.hp} HP remaining`;
-            } else if (gameState.you.hp < gameState.opponent.hp) {
-                title.textContent = 'Defeat';
-                title.className = 'game-over-title defeat';
-                subtitle.textContent = `Opponent had ${gameState.opponent.hp} HP remaining`;
+                subtitle.textContent = `Tournament Victory! ${tournamentState.yourWins} - ${tournamentState.oppWins}`;
             } else {
-                title.textContent = 'Draw!';
-                title.className = 'game-over-title';
-                subtitle.textContent = 'Both players eliminated';
+                title.textContent = 'Tournament Over';
+                title.className = 'game-over-title defeat';
+                subtitle.textContent = `Final Score: ${tournamentState.yourWins} - ${tournamentState.oppWins}`;
             }
             
             overlay.classList.add('show');
+        }
+        
+        // Update tournament UI
+        function updateTournamentUI() {
+            if (matchType === 'tournament') {
+                document.getElementById('tournament-score').style.display = 'flex';
+                document.getElementById('your-wins').textContent = tournamentState.yourWins;
+                document.getElementById('opp-wins').textContent = tournamentState.oppWins;
+            } else {
+                document.getElementById('tournament-score').style.display = 'none';
+            }
         }
 
         // Update UI
